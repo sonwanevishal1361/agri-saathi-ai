@@ -5,7 +5,7 @@ Loads application settings with validation and environment variable overrides.
 
 from pathlib import Path
 from typing import List
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Base directory of the project
@@ -31,9 +31,22 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(
-        default=f"sqlite:///{BASE_DIR / 'data' / 'agrisaathi.db'}",
+        default=f"sqlite:///{(BASE_DIR / 'data' / 'agrisaathi.db').as_posix()}",
         description="SQLAlchemy database URL",
     )
+
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        """Ensure SQLite database URLs resolve to an absolute, normalized path."""
+        if v.startswith("sqlite:///"):
+            raw_path = v[len("sqlite:///"):]
+            # Check if relative
+            p = Path(raw_path)
+            if not p.is_absolute():
+                abs_path = (BASE_DIR / p).resolve()
+                return f"sqlite:///{abs_path.as_posix()}"
+        return v
 
     # AI Provider Settings
     AI_PROVIDER: str = "gemini"  # "gemini" (recommended) or "ollama"
@@ -82,6 +95,15 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Ensure directories exist
+# Ensure application and database directories exist
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
+
+if settings.DATABASE_URL.startswith("sqlite"):
+    try:
+        raw_db_path = settings.DATABASE_URL.replace("sqlite:///", "", 1)
+        if raw_db_path.startswith("/") and len(raw_db_path) > 2 and raw_db_path[2] == ":":
+            raw_db_path = raw_db_path[1:]
+        Path(raw_db_path).parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass

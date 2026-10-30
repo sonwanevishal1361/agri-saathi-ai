@@ -5,6 +5,7 @@ Streamlit main application entrypoint with mobile-first 5-section navigation and
 
 import streamlit as st
 from config import settings
+from core.database import bootstrap_database
 from ui.theme import inject_custom_theme
 from ui.state import (
     init_session_state,
@@ -39,20 +40,27 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# 2. Inject Shared Theme & Mobile Styles
+# 2. Automatic Database Bootstrap (Streamlit Community Cloud & Production Ready)
+@st.cache_resource(show_spinner=False)
+def _st_bootstrap() -> bool:
+    return bootstrap_database()
+
+_st_bootstrap()
+
+# 3. Inject Shared Theme & Mobile Styles
 inject_custom_theme()
 
-# 3. Session State Initialization
+# 4. Session State Initialization
 init_session_state()
 current_farmer = get_current_farmer()
 lang = get_language()
 
-# 4. Authentication Gate
+# 5. Authentication Gate
 if not current_farmer:
     render_auth_page()
     st.stop()
 
-# 5. Top Persistent Header with Language Switcher on Every Page
+# 6. Top Persistent Header with Language Switcher on Every Page
 top_col1, top_col2 = st.columns([3, 2])
 with top_col1:
     st.markdown(
