@@ -1,0 +1,117 @@
+{
+  "commodities": [
+    {
+      "id": "cotton",
+      "en": "Cotton (Kapas)",
+      "mr": "कापूस",
+      "hi": "कपास",
+      "aliases": ["cotton", "kapas", "कापूस", "कपास"]
+    },
+    {
+      "id": "soybean",
+      "en": "Soybean",
+      "mr": "सोयाबीन",
+      "hi": "सोयाबीन",
+      "aliases": ["soybean", "soyabean", "सोयाबीन"]
+    },
+    {
+      "id": "onion",
+      "en": "Onion",
+      "mr": "कांदा",
+      "hi": "प्याज",
+      "aliases": ["onion", "kanda", "कांदा", "प्याज"]
+    },
+    {
+      "id": "wheat",
+      "en": "Wheat",
+      "mr": "गहू",
+      "hi": "गेहूं",
+      "aliases": ["wheat", "gehu", "sharbati", "lokwan", "गहू", "गेहूं"]
+    },
+    {
+      "id": "gram",
+      "en": "Gram (Chana)",
+      "mr": "हरभरा (चना)",
+      "hi": "चना",
+      "aliases": ["gram", "chana", "harbhara", "हरभरा", "चना"]
+    },
+    {
+      "id": "tomato",
+      "en": "Tomato",
+      "mr": "टोमॅटो",
+      "hi": "टमाटर",
+      "aliases": ["tomato", "tamatar", "टोमॅटो", "टमाटर"]
+    },
+    {
+      "id": "turmeric",
+      "en": "Turmeric",
+      "mr": "हळद",
+      "hi": "हल्दी",
+      "aliases": ["turmeric", "haldi", "हळद", "हल्दी"]
+    },
+    {
+      "id": "sugarcane",
+      "en": "Sugarcane",
+      "mr": "ऊस",
+      "hi": "गन्ना",
+      "aliases": ["sugarcane", "ganna", "ऊस", "गन्ना"]
+    },
+    {
+      "id": "tur",
+      "en": "Tur (Arhar/Pigeon Pea)",
+      "mr": "तूर (अरहर)",
+      "hi": "अरहर (तूर)",
+      "aliases": ["tur", "arhar", "pigeon pea", "तूर", "अरहर"]
+    },
+    {
+      "id": "maize",
+      "en": "Maize (Makka)",
+      "mr": "मका",
+      "hi": "मक्का",
+      "aliases": ["maize", "makka", "corn", "मका", "मक्का"]
+    },
+    {
+      "id": "jowar",
+      "en": "Jowar (Sorghum)",
+      "mr": "ज्वारी",
+      "hi": "ज्वार",
+      "aliases": ["jowar", "sorghum", "ज्वारी", "ज्वार"]
+    },
+    {
+      "id": "bajra",
+      "en": "Bajra (Pearl Millet)",
+      "mr": "बाजरी",
+      "hi": "बाजरा",
+      "aliases": ["bajra", "pearl millet", "बाजरी", "बाजरा"]
+    },
+    {
+      "id": "paddy",
+      "en": "Paddy (Dhan/Rice)",
+      "mr": "भात (धान)",
+      "hi": "धान (चावल)",
+      "aliases": ["paddy", "dhan", "rice", "भात", "धान"]
+    },
+    {
+      "id": "groundnut",
+      "en": "Groundnut",
+      "mr": "भुईमूग",
+      "hi": "मूंगफली",
+      "aliases": ["groundnut", "peanut", "भुईमूग", "मूंगफली"]
+    },
+    {
+      "id": "ginger",
+      "en": "Ginger",
+      "mr": "आले",
+      "hi": "अदरक",
+      "aliases": ["ginger", "adrak", "आले", "अदरक"]
+    },
+    {
+      "id": "garlic",
+      "en": "Garlic",
+      "mr": "लसूण",
+      "hi": "लहसुन",
+      "aliases": ["garlic", "lahsun", "लसूण", "लहसुन"]
+    }
+  ]
+}
+

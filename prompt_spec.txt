@@ -1,0 +1,1533 @@
+<USER_REQUEST>
+# MASTER BUILD PROMPT — AGRISAATHI AI
+## Complete AI-Powered Farming Support Platform for Indian Farmers
+
+You are Antigravity operating as an autonomous senior software engineering team consisting of a full-stack developer, AI engineer, database architect, security engineer, agricultural domain specialist, UI/UX designer, and QA engineer.
+
+Your task is to build a complete, polished, functional, and extensible agricultural technology platform named **AgriSaathi AI**.
+
+**Do not merely explain how to build the application. Work directly in the workspace, create the files, implement the features, install dependencies, execute commands, run the application, run tests, debug failures, and deliver a working MVP.**
+
+Do not stop after generating the initial files. Continue until the acceptance criteria have been met or a genuine environment limitation prevents further progress.
+
+---
+
+# 1. PRODUCT VISION
+
+Product name: AgriSaathi AI
+
+Tagline: Your Smart Farming Companion
+
+Marathi tagline: शेतकऱ्यांचा स्मार्ट शेती साथी
+
+Hindi tagline: किसानों का स्मार्ट खेती साथी
+
+Product type: Mobile-friendly web application for Indian farmers.
+
+Primary users: Small and marginal farmers, particularly those who prefer communicating in their local language.
+
+Primary languages:
+- Marathi
+- Hindi
+- English
+
+Primary objective:
+
+Build a single platform where farmers can manage their crops, store farm records, ask agricultural questions, access farming knowledge, record expenses, and receive AI-assisted recommendations.
+
+The application must feel like a real agricultural technology product, not a generic ChatGPT clone or a static dashboard.
+
+It should be useful for farmers while also demonstrating professional software engineering, database design, AI integration, security, testing, and maintainable architecture.
+
+## Core principles
+
+1. Farmer-first user experience.
+2. Mobile-friendly design.
+3. Working database-backed features.
+4. AI answers grounded in available agricultural information.
+5. Multilingual support.
+6. Strong separation between different farmers' private data.
+7. Honest handling of missing live data.
+8. Free local AI inference for the initial version.
+9. Modular architecture for future growth.
+10. No fake functionality or fabricated results.
+
+---
+
+# 2. DEVELOPMENT ENVIRONMENT
+
+Target operating system: Windows 10/11.
+
+Preferred development environment: Windows PowerShell.
+
+Project directory:
+
+C:\Users\Admin\Desktop\AI-Farming-Assistant
+
+Existing project to inspect for reusable knowledge and compatible configuration:
+
+C:\Users\Admin\Desktop\Business-Investigation-Copilot
+
+Known existing tools:
+- Python
+- Streamlit
+- Ollama
+- Qwen 2.5 3B
+
+Previously used Ollama model:
+
+qwen2.5:3b
+
+Local Ollama API:
+
+http://localhost:11434
+
+Default Ollama chat endpoint:
+
+http://localhost:11434/api/chat
+
+Existing Python experience:
+- Python basics
+- Streamlit
+- HTTP requests
+- Local AI model usage
+
+Hardware may be limited to approximately 8 GB RAM and CPU-only inference. Optimize accordingly.
+
+## Environment inspection
+
+Before making changes:
+
+1. Inspect the current project folder.
+2. Check the Python version.
+3. Check whether Ollama is installed and running.
+4. Inspect the installed Ollama models.
+5. Check whether qwen2.5:3b is available.
+6. Check available disk space and existing dependencies if needed.
+7. Inspect the previous Copilot project only to understand reusable setup and code patterns.
+8. Do not modify or overwrite the previous project.
+9. Reuse the existing Qwen model instead of downloading it again.
+10. If the model is missing, report that and ask before downloading a large model.
+
+Create the new project independently.
+
+Use an isolated Python virtual environment. Do not install project dependencies globally unless unavoidable.
+
+Do not run destructive cleanup commands or overwrite unrelated files.
+
+---
+
+# 3. REQUIRED TECHNOLOGY STACK
+
+Use this stack for the MVP.
+
+| Layer | Technology |
+|---|---|
+| Frontend | Streamlit |
+| Backend and application logic | Python |
+| Database | SQLite |
+| Database abstraction | SQLAlchemy 2.x |
+| Schema migrations | Alembic |
+| AI inference | Ollama |
+| Default LLM | qwen2.5:3b |
+| HTTP client | Requests or HTTPX |
+| Data validation | Pydantic |
+| Password hashing | Argon2id or a suitable maintained password-hashing library |
+| Data processing | Pandas, only where useful |
+| Testing | Pytest |
+| Test isolation | Temporary SQLite databases |
+| Code quality | Ruff |
+| Configuration | Environment variables and a validated settings module |
+| Version control | Git |
+
+Keep dependencies lightweight.
+
+Do not require a paid API or cloud AI provider for core functionality.
+
+Do not add heavyweight frameworks or unnecessary microservices.
+
+Use a clear service layer between the UI, database, and AI integrations.
+
+## Future migration
+
+Design database access so that SQLite can later be replaced by PostgreSQL through configuration and Alembic migrations.
+
+Use SQLAlchemy models and database-independent queries where practical.
+
+Do not build an unnecessary PostgreSQL server requirement into the local MVP.
+
+---
+
+# 4. PRODUCT MODULES
+
+Implement all the modules below in the MVP. Clearly distinguish fully functional features from integrations that genuinely require external data or additional models.
+
+## Module A: Authentication and farmer accounts
+
+Implement:
+- Farmer registration.
+- Login.
+- Logout.
+- Password confirmation during registration.
+- Secure password hashing.
+- Session management.
+- Farmer profile editing.
+- Preferred language.
+- Account status.
+- Appropriate authentication error messages.
+- Password-change functionality, if practical.
+- Account deletion with confirmation and safe data cleanup.
+
+Each account must have a unique identifier.
+
+Store no plaintext passwords.
+
+Never display or log passwords, password hashes, session secrets, or sensitive credentials.
+
+Use parameterized ORM queries and server-side validation.
+
+Enforce ownership of every farmer-specific database record.
+
+A farmer must never be able to read, edit, delete, or infer another farmer's private records by changing a record ID.
+
+Implement a centralized current-user authentication dependency or service. Do not rely on hidden UI controls as a security boundary.
+
+Use safe session initialization and a session expiration policy where feasible.
+
+Do not invent a production security guarantee merely because the app has a login screen.
+
+If public deployment is considered later, document the additional requirements for HTTPS, secret management, rate limiting, backup, and production-grade session handling.
+
+### First-run administration
+
+The application must not contain a hardcoded universal administrator password.
+
+Provide a safe first-run setup procedure if an administrator role is implemented. Administrator access must be explicitly provisioned rather than exposed through a public default credential.
+
+For the local MVP, regular farmer accounts are sufficient; do not introduce an unnecessary administrator dashboard.
+
+## Module B: Farmer profile
+
+Store:
+- Full name.
+- Preferred language.
+- State.
+- District.
+- Village or locality.
+- Optional contact information.
+- Farm size and area unit.
+- Soil type, if known.
+- Irrigation method.
+- Created date.
+- Updated date.
+
+Use optional fields where possible.
+
+Never require a precise home address to use the application.
+
+Validate field lengths and allowed values.
+
+Allow the farmer to update their profile.
+
+The chatbot should use relevant profile information to personalize answers only when appropriate.
+
+## Module C: Crop management
+
+Implement complete CRUD operations: create, read, update, and delete.
+
+Each crop record should contain:
+- Crop record ID.
+- Owner farmer ID.
+- Crop name.
+- Variety, optional.
+- Field or plot name, optional.
+- Area planted.
+- Area unit.
+- Sowing date.
+- Expected harvest date.
+- Actual harvest date, optional.
+- Soil type, optional.
+- Irrigation method, optional.
+- Current growth stage.
+- Crop status.
+- Notes.
+- Creation timestamp.
+- Updated timestamp.
+
+Allow farmers to:
+- Add a crop.
+- View their crops.
+- Edit crop details.
+- Delete a crop after confirmation.
+- Filter by crop name and status.
+- View active and completed crops.
+- Open a crop detail page.
+- View crop-related activities and expenses.
+
+Validate dates and measurements.
+
+Do not automatically claim a crop is healthy or ready for harvest just because a record exists.
+
+## Module D: Agricultural crop knowledge
+
+Create a crop knowledge section containing structured information for common crops, including examples such as:
+- Cotton.
+- Soybean.
+- Wheat.
+- Rice.
+- Maize.
+- Tomato.
+- Onion.
+- Chickpea.
+- Sugarcane.
+- Groundnut.
+
+Use a database or structured seed file for crop information.
+
+Suggested fields:
+- Crop name.
+- Scientific name, if verified.
+- Suitable climatic conditions.
+- Soil requirements.
+- Sowing information.
+- Growth stages.
+- Irrigation considerations.
+- Nutrient-management overview.
+- Common pest and disease references.
+- Harvesting considerations.
+- Source title.
+- Source URL.
+- Verification status.
+- Last verified date.
+
+Only include specific agronomic recommendations when they are supported by reliable sources.
+
+Do not fabricate precise fertilizer doses, pesticide rates, yield guarantees, or region-specific sowing dates.
+
+Different varieties, soil conditions, climates, and states can require different recommendations. Explain those differences where relevant.
+
+Allow farmers to search crop information and open a detailed crop page.
+
+The crop library must remain usable even when Ollama is offline.
+
+## Module E: AI farming chatbot
+
+This is a central product feature.
+
+Integrate the local Ollama model through:
+
+POST http://localhost:11434/api/chat
+
+Default model:
+
+qwen2.5:3b
+
+Check model availability before the first request when practical.
+
+Use configurable settings for:
+- Ollama base URL.
+- Model name.
+- Request timeout.
+- Generation temperature.
+- Maximum conversation-history length.
+- Response language.
+
+Do not hardcode settings throughout the application.
+
+### Chatbot capabilities
+
+The assistant should answer questions about:
+- Crop cultivation.
+- Soil preparation.
+- Irrigation.
+- Crop growth stages.
+- Nutrient management.
+- Common plant symptoms.
+- Pest-management principles.
+- Crop rotation.
+- Sustainable farming.
+- Post-harvest handling.
+- Livestock basics.
+- Farm record interpretation.
+- Crop knowledge stored in the platform.
+- Government schemes, when verified information is available.
+- Weather and market information, when a real source is configured.
+
+### Context-aware answers
+
+When the farmer is authenticated and has selected a crop, the application should be able to provide relevant context to the AI.
+
+For example, if the farmer has a cotton crop recorded with a sowing date, the chatbot may use that record to ask more relevant questions.
+
+Only include the current farmer's own authorized records in the prompt.
+
+Never pass another farmer's private data to the model.
+
+Avoid sending the entire database or unnecessary personal information to the model.
+
+Keep user-supplied text and retrieved documents separate from trusted system instructions.
+
+### Conversation history
+
+Implement:
+- New conversation.
+- Existing conversation list.
+- Conversation titles.
+- Message history.
+- User messages and assistant responses.
+- Conversation deletion.
+- Follow-up questions using appropriate prior context.
+
+Persist conversations in the database.
+
+Every conversation and message must be associated with an authenticated owner.
+
+Verify ownership before reading or deleting a conversation.
+
+Use a reasonable context window so older messages do not cause excessive CPU or memory consumption.
+
+Do not store hidden chain-of-thought. Store only user messages and final assistant responses.
+
+### AI system instructions
+
+Create a dedicated agricultural system prompt.
+
+It must instruct the assistant to:
+- Be helpful, respectful, and farmer-friendly.
+- Use simple language.
+- Answer in the selected language.
+- Explain uncertainty.
+- Ask clarifying questions when missing information materially affects advice.
+- Distinguish verified facts from possibilities.
+- Never claim to have checked live weather or market prices without actually retrieving that data.
+- Never invent official schemes, citations, or agricultural research.
+- Never guarantee yield, profit, disease diagnosis, or treatment success.
+- Recommend appropriate professional agricultural advice for high-risk or uncertain situations.
+
+### Failure handling
+
+Handle:
+- Ollama not installed.
+- Ollama service unavailable.
+- Model missing.
+- API timeout.
+- Invalid JSON response.
+- HTTP errors.
+- Empty responses.
+- Generation failure.
+- Invalid user input.
+
+Display understandable messages to the user and technical diagnostics to the development logs without exposing secrets.
+
+Do not crash the entire application if the AI service is unavailable.
+
+---
+
+# 5. MULTILINGUAL SUPPORT
+
+Provide English, Marathi, and Hindi.
+
+Create a dedicated language module for:
+- UI labels.
+- Navigation.
+- Form labels.
+- Buttons.
+- Validation messages.
+- Error messages.
+- Chatbot instructions.
+- Sample questions.
+- Basic empty states.
+- Common notifications.
+
+Use a maintainable dictionary or translation-resource approach instead of scattering language conditions throughout the code.
+
+Suggested translation keys:
+
+app_title
+dashboard
+my_crops
+crop_library
+farm_activities
+farm_expenses
+ai_assistant
+weather
+market_prices
+government_schemes
+profile
+settings
+logout
+add_crop
+edit_crop
+delete_crop
+save
+cancel
+send_message
+new_conversation
+select_language
+
+The assistant should respond in the selected language by default.
+
+It should also handle reasonable language switching when a farmer explicitly requests another supported language.
+
+Test representative Marathi and Hindi text for Unicode handling.
+
+Avoid using machine-generated translations as verified agricultural terminology without review.
+
+---
+
+# 6. FARM ACTIVITIES AND FARM DIARY
+
+Create a farm diary where users can record:
+- Sowing.
+- Irrigation.
+- Fertilizer application.
+- Pest observations.
+- Crop inspections.
+- Weeding.
+- Spraying.
+- Pruning.
+- Harvesting.
+- Other activities.
+
+Each activity must have:
+- Activity ID.
+- Farmer ID.
+- Crop ID, optional where appropriate.
+- Activity type.
+- Activity date.
+- Description.
+- Optional quantity.
+- Optional unit.
+- Optional product name.
+- Optional notes.
+- Creation timestamp.
+
+Allow farmers to add, edit, view, and delete their own activities.
+
+Use validation and ownership checks.
+
+For pesticide or fertilizer records, the app should store what the farmer reports without automatically endorsing the product or dose.
+
+Display activity history on the relevant crop detail page.
+
+Do not generate automatic chemical-treatment instructions from diary entries.
+
+---
+
+# 7. FARM EXPENSES AND HARVEST RECORDS
+
+Implement a practical financial record module.
+
+### Expense records
+
+Track:
+- Seeds.
+- Fertilizers.
+- Labor.
+- Irrigation.
+- Equipment.
+- Transportation.
+- Pest management.
+- Machinery rental.
+- Other farming expenses.
+
+Fields:
+- Expense ID.
+- Farmer ID.
+- Crop ID, optional.
+- Expense category.
+- Amount.
+- Currency.
+- Expense date.
+- Description.
+- Vendor, optional.
+- Creation timestamp.
+
+Use INR as the default currency.
+
+Validate monetary values and reject invalid negative amounts.
+
+Allow editing and deletion with ownership checks.
+
+### Harvest records
+
+Track:
+- Crop.
+- Harvest date.
+- Quantity harvested.
+- Quantity unit.
+- Optional sale quantity.
+- Optional selling price.
+- Optional notes.
+
+Calculate simple summaries:
+- Total recorded expenses.
+- Expenses by crop.
+- Expenses by category.
+- Recorded harvest quantities.
+- Revenue from entered sales, where sufficient information is available.
+- Approximate recorded net balance when revenue and expense coverage is sufficient.
+
+Label financial figures accurately.
+
+Do not present partial records as complete profit calculations.
+
+Never guarantee future profitability.
+
+---
+
+# 8. WEATHER SERVICE
+
+Create a separate weather service module.
+
+The MVP must support two states:
+1. Live weather provider configured and returning valid data.
+2. Live weather unavailable.
+
+Do not invent live weather information.
+
+Use an actual provider with a suitable free access option if feasible. Verify its documentation and current terms before implementation.
+
+If an API key is required, document it as optional configuration.
+
+Do not require a paid weather subscription for the application to start.
+
+Display:
+- Location used for the request.
+- Current conditions when returned by the provider.
+- Forecast periods when supported.
+- Temperature and precipitation when available.
+- Source and retrieval time.
+- Clear error or unavailable state.
+
+Never label stale or sample weather data as current.
+
+Allow users to select their state, district, or locality without forcing them to share precise coordinates.
+
+Weather-based farming suggestions must clearly state uncertainty.
+
+---
+
+# 9. MANDI MARKET PRICE SERVICE
+
+Create a separate market-price service module.
+
+Investigate official or reputable sources for Indian agricultural market prices. Verify endpoint availability, data access requirements, and terms.
+
+Do not fabricate API responses or invent live mandi prices.
+
+If an official source requires registration or credentials, document the configuration process.
+
+Display:
+- Commodity.
+- Market or mandi.
+- State and district, when available.
+- Minimum price, when supplied.
+- Maximum price, when supplied.
+- Modal price, when supplied.
+- Unit.
+- Data date.
+- Source.
+- Retrieval timestamp.
+
+Handle missing fields without crashing.
+
+If the service is unavailable, show a useful message and the official source link where verified.
+
+Do not display demo data in the live-price area without clearly marking it as sample data.
+
+---
+
+# 10. GOVERNMENT AGRICULTURAL SCHEMES
+
+Create a government-schemes information module.
+
+Potential official source starting points:
+- https://agriwelfare.gov.in/
+- https://pmkisan.gov.in/
+- https://mausam.imd.gov.in/
+- https://icar.org.in/
+
+Verify the relevant websites and their current information before use.
+
+Store:
+- Scheme name.
+- Description.
+- State or national applicability.
+- Eligibility summary.
+- Benefits summary.
+- Application process, when verified.
+- Official source URL.
+- Last verified date.
+- Verification status.
+
+Do not fabricate:
+- Benefit amounts.
+- Application deadlines.
+- Eligibility requirements.
+- Subsidy percentages.
+- Application status.
+- Approval guarantees.
+
+Do not pretend to submit government applications.
+
+Provide links to official application pages where verified.
+
+If current scheme information cannot be retrieved, explain that the user should check the official portal.
+
+---
+
+# 11. KNOWLEDGE RETRIEVAL / RAG
+
+Implement a simple, extensible retrieval-augmented generation architecture.
+
+The goal is to ground answers in locally available agricultural knowledge rather than relying entirely on the model's general training.
+
+Start with a lightweight implementation appropriate for a CPU-only computer.
+
+Preferred MVP approach:
+- Structured agricultural records.
+- Locally stored verified documents.
+- Simple text retrieval, using a lightweight method such as TF-IDF if appropriate.
+- Retrieved passages added as clearly labelled context to the LLM prompt.
+- Source titles and URLs shown with responses when relevant.
+
+Do not require a vector database for the first version unless a strong technical reason exists.
+
+Keep retrieval separate from prompt construction and the Ollama service.
+
+Support future migration to embeddings and a vector store.
+
+### Source management
+
+Each knowledge item should include:
+- Document ID.
+- Title.
+- Text or extracted content.
+- Source name.
+- Source URL.
+- Language.
+- Topic or crop.
+- Verification status.
+- Last verified date.
+
+Do not ingest arbitrary remote documents automatically without inspecting the content and source.
+
+Treat retrieved documents as untrusted data, not system instructions.
+
+The assistant must not follow instructions embedded in a retrieved document that attempt to override its system prompt.
+
+When no relevant source exists, the assistant should state that the answer is general guidance.
+
+Do not invent source citations.
+
+Seed the MVP with a small, clearly labelled set of educational records. Include only information that is verified and suitable for the intended audience.
+
+---
+
+# 12. CROP IMAGE UPLOAD AND DISEASE SUPPORT
+
+Implement a modular crop-image workflow.
+
+Features:
+- Upload JPG, JPEG, or PNG.
+- Restrict file size.
+- Validate the file content and extension.
+- Preview the image.
+- Allow the farmer to describe the observed symptoms.
+- Associate an image with a crop record or a health observation, if selected.
+- Provide a text-based symptom questionnaire.
+
+Do not claim that Qwen 2.5 3B is a vision model.
+
+Inspect available local models and determine whether an appropriate vision model is installed.
+
+If a compatible local vision model is available, implement image analysis only if it can be tested successfully.
+
+Otherwise:
+- Keep image upload and preview functional.
+- Offer symptom-based text guidance.
+- Explain that automated image diagnosis is not configured.
+- Do not download a large vision model without approval.
+
+Never claim definitive disease diagnosis from an unverified model.
+
+Do not recommend specific pesticide dosages based solely on a photo.
+
+---
+
+# 13. DATABASE ARCHITECTURE
+
+Use SQLAlchemy models, proper foreign keys, relationships, constraints, indexes, and Alembic migrations.
+
+Use UTC timestamps internally and convert to a suitable local timezone for display.
+
+Use unique IDs and enforce ownership checks.
+
+Create at least the following logical tables.
+
+### users
+- id
+- full_name
+- email, nullable if phone-based login is chosen
+- phone, nullable
+- password_hash
+- preferred_language
+- state
+- district
+- village
+- farm_size
+- farm_area_unit
+- soil_type
+- irrigation_method
+- is_active
+- created_at
+- updated_at
+
+Choose a workable unique login identity and enforce uniqueness. Normalize the identity before comparison.
+
+Do not require unnecessary personal data.
+
+### crops
+- id
+- farmer_id
+- name
+- variety
+- plot_name
+- area
+- area_unit
+- sowing_date
+- expected_harvest_date
+- actual_harvest_date
+- soil_type
+- irrigation_method
+- growth_stage
+- status
+- notes
+- created_at
+- updated_at
+
+### crop_knowledge
+- id
+- crop_name
+- scientific_name
+- description
+- soil_requirements
+- climate_requirements
+- sowing_information
+- irrigation_information
+- nutrient_management
+- pest_disease_information
+- harvesting_information
+- source_name
+- source_url
+- verification_status
+- last_verified_at
+
+### farm_activities
+- id
+- farmer_id
+- crop_id
+- activity_type
+- activity_date
+- description
+- quantity
+- unit
+- product_name
+- notes
+- created_at
+- updated_at
+
+### expenses
+- id
+- farmer_id
+- crop_id
+- category
+- amount
+- currency
+- expense_date
+- description
+- vendor
+- created_at
+- updated_at
+
+### harvest_records
+- id
+- farmer_id
+- crop_id
+- harvest_date
+- quantity
+- quantity_unit
+- sale_quantity
+- selling_price
+- notes
+- created_at
+
+### conversations
+- id
+- farmer_id
+- title
+- preferred_language
+- created_at
+- updated_at
+
+### messages
+- id
+- conversation_id
+- farmer_id
+- role
+- content
+- created_at
+
+### knowledge_documents
+- id
+- title
+- content
+- source_name
+- source_url
+- language
+- topic
+- verification_status
+- last_verified_at
+- created_at
+
+### health_observations
+- id
+- farmer_id
+- crop_id
+- symptom_description
+- image_storage_path, nullable
+- possible_causes
+- advice_summary
+- source_reference
+- created_at
+
+You may introduce additional tables if needed, but avoid unnecessary complexity.
+
+Add appropriate indexes for frequent lookups.
+
+Enforce referential integrity.
+
+Use migrations rather than silently recreating production tables on every startup.
+
+Provide a safe development initialization procedure.
+
+### Database security
+
+- Never interpolate user input into raw SQL.
+- Never trust a farmer ID received from a browser or form without checking the authenticated session.
+- Scope private-record queries by the current authenticated farmer.
+- Verify both conversation ownership and crop ownership before creating related records.
+- Prevent cross-account access.
+- Do not return database internals or stack traces to ordinary users.
+
+### PostgreSQL migration path
+
+Use a configurable SQLAlchemy database URL.
+
+SQLite is the default for local development.
+
+Document how to configure PostgreSQL later and how to apply Alembic migrations.
+
+Do not claim PostgreSQL compatibility unless the schema and queries have been reviewed and tested for compatibility.
+
+---
+
+# 14. USER INTERFACE AND NAVIGATION
+
+Build a professional, consistent, mobile-friendly interface.
+
+Use a restrained agricultural visual identity:
+- Deep green.
+- Leaf green.
+- White and light neutral backgrounds.
+- Readable typography.
+- Consistent spacing.
+- Clear icons.
+- Accessible contrast.
+- Responsive layouts.
+
+Avoid clutter, excessive animation, and unnecessary gradients.
+
+The interface should remain usable at narrow smartphone widths.
+
+Create these pages or navigation sections:
+
+1. Login and registration.
+2. Home dashboard.
+3. My Crops.
+4. Crop Details.
+5. Crop Knowledge Library.
+6. AI Farming Assistant.
+7. Farm Diary.
+8. Farm Expenses.
+9. Harvest Records.
+10. Weather.
+11. Mandi Prices.
+12. Government Schemes.
+13. Farmer Profile.
+14. Settings.
+
+### Dashboard
+
+Show real database-backed information:
+- Active crops.
+- Recent farming activities.
+- Recorded expenses.
+- Upcoming expected harvest dates, where available.
+- Recent chatbot conversations.
+- Useful shortcuts.
+
+Use helpful empty states for new accounts.
+
+Do not fabricate dashboard numbers.
+
+### Crop detail page
+
+Show:
+- Crop details.
+- Growth stage and recorded dates.
+- Related activities.
+- Related expenses.
+- Harvest records.
+- Button to ask the AI about this crop.
+
+### Chat interface
+
+Show:
+- Conversation history.
+- Message input.
+- Language selection.
+- Sample questions.
+- Loading state.
+- Error handling.
+- Source references.
+- New conversation button.
+
+### Navigation
+
+Use a simple sidebar or responsive navigation layout.
+
+Do not create a separate dashboard-only product. The conversational assistant and crop management must work together.
+
+### Streamlit constraints
+
+Use Streamlit's supported APIs.
+
+Avoid deprecated APIs.
+
+Avoid full application reruns that accidentally erase user input or create duplicate records.
+
+Use stable form handling, appropriate session state, and clear error states.
+
+Persist important data in the database, not only in session state.
+
+---
+
+# 15. SECURITY, PRIVACY, AND DATA HANDLING
+
+Treat this as an application that may eventually store real farmers' private information.
+
+Implement:
+- Password hashing with a suitable password-hashing algorithm.
+- Input validation.
+- Safe database access.
+- Authentication checks.
+- Per-user authorization.
+- Secure secret configuration.
+- Upload validation.
+- Error handling.
+- Minimal logging of personal information.
+- Account deletion and documented data retention behavior.
+- `.gitignore` protection for the SQLite database, uploads, virtual environment, and secrets.
+
+Do not store passwords in plaintext.
+
+Do not commit `.env` files or credentials.
+
+Provide `.env.example` with placeholders only.
+
+Do not expose the Ollama endpoint publicly.
+
+Do not automatically expose the development server to a public network.
+
+Do not upload farm records, uploaded crop photos, or chat histories to third-party AI services without explicit configuration and user awareness.
+
+For local inference, send only the minimum context needed to Ollama.
+
+Do not claim that local storage automatically makes an application secure.
+
+Document that public multi-user deployment requires additional hardening, HTTPS, secure secret management, backups, rate limiting, monitoring, and deployment-specific review.
+
+---
+
+# 16. ERROR HANDLING AND PERFORMANCE
+
+Design for modest hardware.
+
+Requirements:
+- Keep the local Qwen model as the default when available.
+- Avoid unnecessary model downloads.
+- Limit chat context length.
+- Avoid repeated calls to Ollama for the same operation.
+- Use reasonable request timeouts.
+- Avoid blocking the entire interface during unrelated operations.
+- Cache only appropriate public or static information.
+- Do not cache one farmer's private data across users.
+- Keep database transactions short.
+- Close database sessions correctly.
+- Provide useful logs for development.
+- Avoid showing raw stack traces to farmers.
+
+Handle missing services gracefully.
+
+The core application must remain usable when:
+- Ollama is offline.
+- A model is missing.
+- Weather is unavailable.
+- Market-price data is unavailable.
+- No knowledge document matches a question.
+- The user has no crops or activities yet.
+- An image cannot be processed.
+
+---
+
+# 17. REQUIRED PROJECT STRUCTURE
+
+Create a maintainable structure similar to the following:
+
+AI-Farming-Assistant/
+    app.py
+    config.py
+    requirements.txt
+    README.md
+    .gitignore
+    .env.example
+
+    core/
+        __init__.py
+        database.py
+        security.py
+        auth.py
+        exceptions.py
+
+    models/
+        __init__.py
+        user.py
+        crop.py
+        activity.py
+        expense.py
+        harvest.py
+        conversation.py
+        knowledge.py
+
+    schemas/
+        __init__.py
+        user.py
+        crop.py
+        activity.py
+        expense.py
+        harvest.py
+        chat.py
+
+    services/
+        __init__.py
+        crop_service.py
+        activity_service.py
+        expense_service.py
+        harvest_service.py
+        ollama_service.py
+        chat_service.py
+        knowledge_service.py
+        weather_service.py
+        mandi_service.py
+        schemes_service.py
+        image_service.py
+
+    utils/
+        __init__.py
+        prompts.py
+        language.py
+        validation.py
+        formatting.py
+        logging_config.py
+
+    ui/
+        __init__.py
+        auth_pages.py
+        dashboard.py
+        crops_page.py
+        crop_detail.py
+        knowledge_page.py
+        chat_page.py
+        diary_page.py
+        expenses_page.py
+        harvest_page.py
+        weather_page.py
+        market_page.py
+        schemes_page.py
+        profile_page.py
+
+    data/
+        knowledge/
+        sample/
+
+    assets/
+        .gitkeep
+
+    migrations/
+        env.py
+        versions/
+
+    tests/
+        conftest.py
+        test_auth.py
+        test_authorization.py
+        test_crops.py
+        test_activities.py
+        test_expenses.py
+        test_harvest.py
+        test_chat.py
+        test_language.py
+        test_knowledge.py
+        test_safety.py
+        test_uploads.py
+        test_services.py
+
+    scripts/
+        init_db.py
+        seed_knowledge.py
+
+Adjust the exact layout where needed, but keep responsibilities separated and code understandable.
+
+Do not create empty modules just to match the structure. Implement the functionality of every claimed feature.
+
+Avoid putting the entire application into one enormous Python file.
+
+---
+
+# 18. AUTOMATED TESTING
+
+Create meaningful automated tests using Pytest.
+
+Use a temporary test database and mock external services where necessary.
+
+Tests must not require paid APIs or a running production database.
+
+At minimum, test:
+
+### Authentication
+- Successful registration.
+- Duplicate account rejection.
+- Passwords are hashed.
+- Successful login.
+- Incorrect password rejection.
+- Logout behavior.
+- Session initialization.
+- Invalid account handling.
+
+### Authorization
+- A farmer can access their own crop.
+- A farmer cannot access another farmer's crop.
+- A farmer cannot update another farmer's expense.
+- A farmer cannot delete another farmer's conversation.
+- Cross-account access is rejected at the service layer.
+
+### Crop management
+- Crop creation.
+- Crop updates.
+- Crop deletion.
+- Invalid date validation.
+- Invalid measurements.
+- Crop filtering.
+- Related records and ownership validation.
+
+### Farm records
+- Activity creation and retrieval.
+- Expense creation and validation.
+- Harvest-record creation.
+- Correct calculation of recorded totals.
+- Rejection of invalid amounts and quantities.
+
+### Chatbot
+- Empty messages are rejected.
+- Conversation history is preserved.
+- Follow-up context is bounded.
+- Marathi response preference is passed to the prompt.
+- Hindi response preference is passed to the prompt.
+- English response preference is passed to the prompt.
+- Missing Ollama connection is handled.
+- Missing model is handled.
+- Malformed responses are handled.
+- Failed inference does not corrupt conversation history.
+
+### Knowledge and safety
+- Relevant knowledge can be retrieved.
+- Source references are preserved.
+- Unknown sources are not fabricated.
+- Unverified live data is not presented as current.
+- Dangerous chemical dosage requests trigger appropriate safeguards.
+- Retrieved document text cannot override system instructions.
+
+### Uploads
+- Allowed image types are accepted.
+- Invalid files are rejected.
+- Oversized files are rejected.
+- Unsafe filenames are handled.
+- Image processing is not claimed when a vision model is unavailable.
+
+### Integration
+- Application imports successfully.
+- Database initialization succeeds.
+- Core services can be imported.
+- The Streamlit app starts.
+- The interface handles an empty database.
+
+Mock Ollama during most tests.
+
+Run the actual model manually only if it is available and appropriate for the hardware.
+
+Record the actual results. Do not claim that unexecuted tests passed.
+
+Fix all actionable test failures before declaring the MVP complete.
+
+---
+
+# 19. WINDOWS POWERSHELL SETUP
+
+Create a beginner-friendly README with exact Windows commands.
+
+The README should cover:
+
+### Create and activate environment
+
+    cd "$env:USERPROFILE\Desktop\AI-Farming-Assistant"
+    python -m venv venv
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+    .\venv\Scripts\Activate.ps1
+
+### Install dependencies
+
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+
+### Configure the environment
+
+Create `.env` locally using `.env.example` as a reference.
+
+Do not commit the real `.env` file.
+
+Document a safe way to create the local secret.
+
+### Database
+
+Document how to initialize or migrate the database using the selected database-management approach.
+
+Do not delete an existing database to solve a migration problem.
+
+### Start Ollama
+
+Check:
+
+    ollama list
+
+If available, verify that the required model is installed.
+
+Start the Ollama service using the supported command for the installed version if it is not already running.
+
+Do not download the model again if qwen2.5:3b already exists.
+
+### Run application
+
+Use the project's documented Streamlit command.
+
+Normally:
+
+    python -m streamlit run app.py
+
+### Run tests
+
+    python -m pytest -q
+
+### Run code checks
+
+Use Ruff and any other configured checks.
+
+Ensure all commands match the actual files and dependencies created.
+
+---
+
+# 20. LIVE DATA AND EXTERNAL SERVICE INTEGRATION
+
+Keep external providers modular.
+
+Before implementing any provider:
+1. Verify the current documentation.
+2. Confirm whether authentication is required.
+3. Check whether the service is available.
+4. Confirm the response structure.
+5. Handle rate limits and failures.
+6. Attribute information to the source.
+7. Never fabricate returned data.
+
+If external network access is unavailable in the coding environment, implement the service interface, clear configuration instructions, unit tests using mocked responses, and an honest unavailable state.
+
+Do not label a mocked response as live data.
+
+Do not make the entire MVP dependent on a weather API or mandi API.
+
+---
+
+# 21. IMPLEMENTATION WORKFLOW — AUTONOMOUS MODE
+
+Follow this sequence, but do not ask me to manually execute each stage if your tools can perform it.
+
+### Phase 1: Inspect and plan
+- Inspect the environment.
+- Check Python and Ollama.
+- Review the target directory.
+- Prepare a short implementation plan.
+- Identify risks and compatibility issues.
+
+### Phase 2: Create the project
+- Create the folder structure.
+- Create configuration files.
+- Create the virtual environment.
+- Install dependencies.
+- Create database models and migrations.
+
+### Phase 3: Implement core functionality
+- Database and models.
+- Authentication.
+- Authorization.
+- Farmer profiles.
+- Crop management.
+- Farm activities.
+- Expenses.
+- Harvest records.
+
+### Phase 4: Implement AI and knowledge
+- Ollama integration.
+- Agricultural system prompt.
+- Multilingual support.
+- Conversation persistence.
+- Knowledge retrieval.
+- Safety handling.
+- Crop-image workflow.
+
+### Phase 5: Implement the interface
+- Login and registration.
+- Responsive dashboard.
+- Crop management pages.
+- Crop library.
+- Chat interface.
+- Farm diary.
+- Financial records.
+- Weather, market, and scheme pages.
+- Profile and settings.
+
+### Phase 6: Testing
+- Execute automated tests.
+- Fix failures.
+- Run Ruff.
+- Validate database initialization.
+- Check Ollama connectivity when available.
+- Verify the Streamlit app starts.
+
+### Phase 7: Integration and review
+- Test the core workflow from registration to crop creation to chat.
+- Verify farmer data isolation.
+- Verify all visible controls work.
+- Verify missing services show understandable messages.
+- Inspect logs for errors.
+- Confirm there are no accidental secret files or unrelated project modifications.
+
+### Phase 8: Launch
+- Start the Streamlit app using the development environment.
+- Confirm the local URL if startup succeeds.
+- If the environment cannot keep the process running, document the exact launch command.
+- Do not claim that the app is running if startup failed.
+
+Do not stop at a plan, skeleton, or partially implemented codebase.
+
+If a feature cannot be completed because of an external limitation, implement the safest usable fallback, document the limitation, and continue with all other tasks.
+
+---
+
+# 22. DEFINITION OF DONE
+
+The MVP is accepted only when all of the following have been addressed:
+
+- The project exists in the specified directory.
+- The Python environment is configured.
+- The dependencies are installed or clearly identified as blocked.
+- The database initializes and the schema is managed through migrations.
+- Registration and login work.
+- Passwords are hashed.
+- Multiple farmer accounts are supported.
+- Farmer records are isolated by authorization checks.
+- Crop CRUD operations work.
+- Crop knowledge is searchable.
+- Farm activities can be recorded.
+- Expenses can be recorded.
+- Harvest records can be recorded.
+- The dashboard uses real database data.
+- The chatbot integrates with local Ollama when available.
+- The configured language is passed to the chatbot.
+- Conversation history is stored and retrieved securely.
+- Basic retrieval-augmented generation works.
+- Agricultural safety controls are implemented.
+- Image uploads are validated.
+- Missing external services do not crash the application.
+- All visible controls have working behavior or are clearly disabled with an explanation.
+- Tests have been executed and actual results recorded.
+- The README contains accurate setup and troubleshooting instructions.
+- The application launches successfully or the exact blocking issue is documented.
+
+Do not mark the entire project complete merely because files exist.
+
+---
+
+# 23. FINAL DELIVERY REPORT
+
+When implementation and testing finish, report:
+
+1. Project path.
+2. Application architecture.
+3. Complete file tree.
+4. Features implemented and tested.
+5. Features implemented with limitations.
+6. Features not implemented and the reason.
+7. Python and dependency versions.
+8. Database schema and migration details.
+9. Ollama model detected and its availability.
+10. Commands used to launch the application.
+11. Local URL if the app started successfully.
+12. Actual automated test results.
+13. Actual code-quality check results.
+14. Any manual configuration still required.
+15. Known security limitations before public deployment.
+16. The next three recommended improvements.
+
+Do not fabricate test results, data sources, successful model calls, or browser checks.
+
+If the application runs successfully, leave it running when your environment supports that safely.
+
+## FINAL INSTRUCTION
+
+Begin by inspecting my Windows development environment and the target folder.
+
+Then implement AgriSaathi AI directly, using the existing Qwen model if available.
+
+Make reasonable engineering decisions without repeatedly asking me to choose minor details.
+
+Prioritize a working, secure local MVP with real database persistence and clear separation between farmers' records.
+
+**Create the code, execute the commands, run the tests, fix errors, launch the application, and report the verified result. Do not merely give me instructions to do the work myself.**
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-29T16:31:51+05:30.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Gemini 3.8 Flash (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
