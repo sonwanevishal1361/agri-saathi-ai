@@ -122,6 +122,163 @@ def inject_custom_theme():
             gap: 8px;
         }
 
+        .farmer-welcome-banner {
+            background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 70%, #388e3c 100%);
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 22px 24px;
+            margin-bottom: 22px;
+            box-shadow: 0 6px 18px rgba(27, 94, 32, 0.16);
+            border: 1.5px solid #43a047;
+        }
+
+        .farmer-welcome-title {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .farmer-welcome-sub {
+            margin: 6px 0 0 0;
+            color: #e8f5e9;
+            font-size: 1.02rem;
+            font-weight: 500;
+        }
+
+        .farmer-badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            color: #ffffff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .action-card-box {
+            background: #ffffff;
+            border: 1.5px solid #c8e6c9;
+            border-radius: 14px;
+            padding: 18px 14px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            transition: all 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .action-card-box:hover {
+            border-color: #2e7d32;
+            box-shadow: 0 4px 12px rgba(46,125,50,0.12);
+            transform: translateY(-2px);
+        }
+
+        .action-card-icon {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .action-card-title {
+            font-size: 1.02rem;
+            font-weight: 700;
+            color: #1b5e20;
+            margin: 0 0 4px 0;
+            line-height: 1.3;
+        }
+
+        .action-card-desc {
+            font-size: 0.84rem;
+            color: #4b634b;
+            margin: 0 0 12px 0;
+            line-height: 1.35;
+            flex-grow: 1;
+        }
+
+        .weather-farmer-card {
+            background: #ffffff;
+            border: 2px solid #a5d6a7;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 22px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+        }
+
+        .weather-guidance-box {
+            background: #f7faf7;
+            border-left: 5px solid #2e7d32;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-top: 14px;
+            font-size: 0.95rem;
+            color: #1b3b1b;
+            line-height: 1.5;
+        }
+
+        .weather-guidance-box.warn {
+            background: #fff8f8;
+            border-left-color: #d32f2f;
+            color: #5f1515;
+        }
+
+        .crop-farmer-card {
+            background: #ffffff;
+            border: 1.5px solid #c8e6c9;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            transition: all 0.15s ease;
+        }
+
+        .crop-farmer-card:hover {
+            border-color: #81c784;
+        }
+
+        .crop-care-tip {
+            background: #eef7ee;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            font-size: 0.88rem;
+            color: #1b5e20;
+            border-left: 3px solid #4caf50;
+        }
+
+        .mandi-preview-box {
+            background: #ffffff;
+            border: 1.5px solid #c8e6c9;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .mandi-preview-box:hover {
+            border-color: #2e7d32;
+            background: #fcfdfc;
+        }
+
+        .ai-search-banner {
+            background: linear-gradient(135deg, #f1f8f1 0%, #e8f5e9 100%);
+            border: 2px solid #a5d6a7;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 22px;
+            box-shadow: 0 3px 10px rgba(46,125,50,0.06);
+        }
+
         .action-tile-btn {
             display: block;
             background: linear-gradient(135deg, #ffffff, #f4fbf4);

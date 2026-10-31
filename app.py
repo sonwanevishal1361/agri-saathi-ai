@@ -60,17 +60,20 @@ if not current_farmer:
     render_auth_page()
     st.stop()
 
-# 6. Top Persistent Header with Language Switcher on Every Page
-top_col1, top_col2 = st.columns([3, 2])
+# 6. Top Persistent Header with Language Switcher, Profile & Logout on Every Page
+farmer_loc_parts = [p for p in [current_farmer.village, current_farmer.district, current_farmer.state] if p]
+farmer_loc_display = " • 📍 " + ", ".join(farmer_loc_parts) if farmer_loc_parts else ""
+
+top_col1, top_col2, top_col3 = st.columns([5, 3, 3])
 with top_col1:
     st.markdown(
         f"""
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
             <span style="font-size: 1.8rem;">🌱</span>
             <div>
-                <h3 style="margin: 0; color: #1b5e20; line-height: 1.2;">AgriSaathi AI</h3>
-                <span style="font-size: 0.8rem; color: #2e7d32; font-weight: 600;">
-                    {current_farmer.full_name} • {current_farmer.district or current_farmer.state or ''}
+                <h3 style="margin: 0; color: #1b5e20; line-height: 1.2;">AgriSaathi AI (कृषी साथी AI)</h3>
+                <span style="font-size: 0.84rem; color: #2e7d32; font-weight: 600;">
+                    👤 {current_farmer.full_name}{farmer_loc_display}
                 </span>
             </div>
         </div>
@@ -91,6 +94,17 @@ with top_col2:
     if lang_choice != lang:
         set_language(lang_choice)
         st.rerun()
+
+with top_col3:
+    hdr_p_col, hdr_l_col = st.columns(2)
+    with hdr_p_col:
+        if st.button("👤 " + t("profile", lang), key="hdr_btn_profile", use_container_width=True):
+            set_page("profile")
+            st.rerun()
+    with hdr_l_col:
+        if st.button("🚪 " + t("logout", lang), key="hdr_btn_logout", use_container_width=True):
+            logout()
+            st.rerun()
 
 # 6. Primary 5-Section Mobile Navigation Bar
 sections = {
@@ -175,7 +189,7 @@ elif active_sec == "market_schemes":
 # 8. Sidebar Companion with Profile & Quick Controls
 with st.sidebar:
     st.markdown(
-        """
+        f"""
         <div style="text-align: center; padding: 10px 0 12px 0;">
             <h2 style="color: #1b5e20; margin: 0;">🌱 AgriSaathi AI</h2>
             <p style="color: #2e7d32; font-size: 0.85rem; margin: 0; font-weight: 600;">

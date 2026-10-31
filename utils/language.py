@@ -1016,6 +1016,300 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mr": "वाहतूक खर्च व निव्वळ नफा गणक",
         "hi": "परिवहन खर्च व शुद्ध लाभ कैलकुलेटर",
     },
+
+    # Farmer-Friendly Homepage Redesign
+    "welcome_help_prompt": {
+        "en": "What help do you need for your farm today?",
+        "mr": "आज तुमच्या शेतीसाठी काय मदत हवी आहे?",
+        "hi": "आज आपकी खेती के लिए क्या सहायता चाहिए?",
+    },
+    "greeting_farmer": {
+        "en": "Welcome",
+        "mr": "रामराम",
+        "hi": "नमस्ते",
+    },
+    "weather_clear_guidance": {
+        "en": "✅ Weather is clear and calm today. Highly favorable for fieldwork, intercultural weeding, and foliar spraying.",
+        "mr": "✅ आज हवामान स्वच्छ व शांत आहे. शेतातील कामे, आंतरमशागत व फवारणीसाठी अतिशय अनुकूल परिस्थिती आहे.",
+        "hi": "✅ आज मौसम साफ और शांत है। खेत के काम, निराई-गुड़ाई और छिड़काव के लिए बहुत अच्छा समय है।",
+    },
+    "weather_rain_guidance": {
+        "en": "⚠️ Rain or high winds expected. Check weather conditions before spraying and postpone chemical application to avoid wash-off.",
+        "mr": "⚠️ पावसाची किंवा जोरदार वाऱ्याची शक्यता आहे. फवारणी करण्यापूर्वी हवामान तपासा आणि औषध वाहून जाणे टाळण्यासाठी फवारणी पुढे ढकला.",
+        "hi": "⚠️ बारिश या तेज हवा की संभावना है। छिड़काव करने से पहले मौसम जांचें और दवा व्यर्थ होने से बचाने के लिए छिड़काव टालें।",
+    },
+    "weather_humid_guidance": {
+        "en": "💧 High humidity detected. Fungal and pest risks increase during damp weather; inspect your fields regularly.",
+        "mr": "💧 हवेत आर्द्रता जास्त असल्याने पिकांवर बुरशीजन्य रोग व कीड प्रादुर्भावाचा धोका वाढू शकतो, शेताचे नियमित निरीक्षण करा.",
+        "hi": "💧 हवा में नमी अधिक है जिससे फफूंद व कीट का जोखिम बढ़ सकता है, फसल का नियमित निरीक्षण करें।",
+    },
+    "farm_total_expense": {
+        "en": "Farm Expenses",
+        "mr": "शेतीचा खर्च",
+        "hi": "खेती का खर्च",
+    },
+    "crop_sales_income": {
+        "en": "Crop Sales Income",
+        "mr": "पिकांच्या विक्रीतून मिळालेले पैसे",
+        "hi": "फसल बिक्री से प्राप्त आय",
+    },
+    "total_profit_loss": {
+        "en": "Total Profit or Loss",
+        "mr": "एकूण नफा किंवा तोटा",
+        "hi": "कुल लाभ या हानि",
+    },
+    "empty_finances_friendly": {
+        "en": "No expenses or crop sales recorded yet. Track seeds, fertilizers, and sales to know your true net farm profit.",
+        "mr": "अद्याप खर्च किंवा विक्रीची नोंद नाही. खते, बियाणे, मजुरीचा हिशोब ठेवा आणि खरा नफा जाणून घ्या.",
+        "hi": "अभी खर्च या बिक्री दर्ज नहीं है। खाद, बीज और मजदूरी का हिसाब रखें और शुद्ध लाभ जानें।",
+    },
+    "action_ask_ai_title": {
+        "en": "🤖 Ask Farming Questions",
+        "mr": "🤖 शेतीविषयक प्रश्न विचारा",
+        "hi": "🤖 कृषि संबंधी प्रश्न पूछें",
+    },
+    "action_ask_ai_desc": {
+        "en": "Instant AI advice on pests, fertilizers & weather",
+        "mr": "कीड, खते व हवामानावर AI सल्ला",
+        "hi": "कीट, खाद व मौसम पर AI सलाह",
+    },
+    "action_crop_doctor_title": {
+        "en": "🌿 Scan Leaf & Disease",
+        "mr": "🌿 पिकांवरील रोग ओळखा",
+        "hi": "🌿 फसल रोग की पहचान",
+    },
+    "action_crop_doctor_desc": {
+        "en": "Photo check & university guidance",
+        "mr": "पानाचा फोटो काढून उपाय तपासा",
+        "hi": "पत्ती का फोटो लेकर उपाय जानें",
+    },
+    "action_mandi_title": {
+        "en": "💰 Today's Mandi Rates",
+        "mr": "💰 आजचे बाजारभाव",
+        "hi": "💰 आज के मंडी भाव",
+    },
+    "action_mandi_desc": {
+        "en": "Compare APMC prices & net transport profit",
+        "mr": "बाजारभाव तुलना व वाहतूक नफा",
+        "hi": "मंडी भाव तुलना और परिवहन लाभ",
+    },
+    "action_weather_title": {
+        "en": "🌦️ Weather Information",
+        "mr": "🌦️ हवामान माहिती",
+        "hi": "🌦️ मौसम की जानकारी",
+    },
+    "action_weather_desc": {
+        "en": "Rain, wind & spray timing advisory",
+        "mr": "पाऊस, वारा व फवारणी अंदाज",
+        "hi": "बारिश, हवा और छिड़काव सलाह",
+    },
+    "action_my_crops_title": {
+        "en": "🌾 My Active Crops",
+        "mr": "🌾 माझी पिके",
+        "hi": "🌾 मेरी फसलें",
+    },
+    "action_my_crops_desc": {
+        "en": "Growth stages & crop schedule",
+        "mr": "पिकांची वाढ व नियोजन",
+        "hi": "फसलों की वृद्धि व योजना",
+    },
+    "action_schemes_title": {
+        "en": "🏛️ Government Schemes",
+        "mr": "🏛️ सरकारी योजना",
+        "hi": "🏛️ सरकारी योजनाएं",
+    },
+    "action_schemes_desc": {
+        "en": "PM-Kisan, PMFBY & state subsidies",
+        "mr": "पीएम-किसान, विमा व अनुदाने",
+        "hi": "पीएम-किसान, बीमा व सब्सिडी",
+    },
+    "action_expenses_title": {
+        "en": "📒 Farm Expenses",
+        "mr": "📒 शेतीचा खर्च",
+        "hi": "📒 खेती का खर्च",
+    },
+    "action_expenses_desc": {
+        "en": "Log seeds, fertilizers & labor costs",
+        "mr": "बियाणे, खते व मजुरीची नोंद",
+        "hi": "बीज, खाद और मजदूरी रिकॉर्ड",
+    },
+    "action_harvest_title": {
+        "en": "🚜 Harvest & Sales",
+        "mr": "🚜 कापणी आणि विक्री",
+        "hi": "🚜 कटाई और बिक्री",
+    },
+    "action_harvest_desc": {
+        "en": "Log yields, sales rates & net profit",
+        "mr": "उत्पादन, विक्री व खरा नफा",
+        "hi": "उपज, बिक्री और शुद्ध लाभ",
+    },
+    "ai_home_section_title": {
+        "en": "🤖 Ask Any Farming Question (AI Assistant)",
+        "mr": "🤖 शेतीविषयक काहीही विचारा (AI सल्लागार)",
+        "hi": "🤖 खेती से जुड़ा कुछ भी पूछें (AI सहायक)",
+    },
+    "ai_home_section_desc": {
+        "en": "Get instant university-verified answers on pest control, fertilizer dosages, and weather tips.",
+        "mr": "कीड नियंत्रण, खतांची मात्रा किंवा हवामानावर तात्काळ अचूक शास्त्रशुद्ध उपाय मिळवा.",
+        "hi": "कीट नियंत्रण, खाद की मात्रा या मौसम पर तुरंत सटीक वैज्ञानिक समाधान पाएं।",
+    },
+    "ai_home_input_placeholder": {
+        "en": "e.g. How to control pink bollworm in cotton? or What is the best fertilizer for soybean...",
+        "mr": "उदा. कापसावरील बोंडअळी कशी रोखावी? किंवा सोयाबीनला दुसरे खत कधी द्यावे...",
+        "hi": "उदा. कपास में गुलाबी सुंडी कैसे रोकें? या सोयाबीन में दूसरा खाद कब दें...",
+    },
+    "ai_chip_bollworm": {
+        "en": "🐛 Cotton Bollworm Control",
+        "mr": "🐛 कापूस बोंडअळी नियंत्रण",
+        "hi": "🐛 कपास गुलाबी सुंडी रोकथाम",
+    },
+    "ai_chip_soybean_fert": {
+        "en": "🌾 Soybean Fertilizer Guide",
+        "mr": "🌾 सोयाबीन खत व्यवस्थापन",
+        "hi": "🌾 सोयाबीन खाद प्रबंधन",
+    },
+    "ai_chip_onion_blight": {
+        "en": "🧅 Onion Blight Management",
+        "mr": "🧅 कांदा करपा रोग उपाय",
+        "hi": "🧅 प्याज झुलसा रोग उपचार",
+    },
+    "ai_chip_spray_today": {
+        "en": "🌧️ Is it safe to spray today?",
+        "mr": "🌧️ आज फवारणी करावी का?",
+        "hi": "🌧️ क्या आज छिड़काव करें?",
+    },
+    "btn_ask_ai_now": {
+        "en": "Ask AI 🚀",
+        "mr": "सल्ला मिळवा 🚀",
+        "hi": "सलाह पाएं 🚀",
+    },
+    "mandi_home_preview_title": {
+        "en": "🌾 Today's Mandi Market Rates",
+        "mr": "🌾 आजचे बाजारभाव (प्रमुख पिके)",
+        "hi": "🌾 आज के प्रमुख मंडी भाव",
+    },
+    "mandi_home_preview_desc": {
+        "en": "Compare APMC auction rates and estimated net in-hand earnings after transport.",
+        "mr": "विविध बाजार समित्यांमधील भाव व वाहतूक वजा निव्वळ रक्कम",
+        "hi": "विभिन्न मंडियों के भाव और परिवहन पश्चात शुद्ध मूल्य",
+    },
+    "view_all_markets_btn": {
+        "en": "Compare All APMC Mandi Rates ➡️",
+        "mr": "सर्व बाजार समित्यांमधील भाव तपासा ➡️",
+        "hi": "सभी मंडियों के भाव देखें ➡️",
+    },
+    "crop_stage_care_lbl": {
+        "en": "Current Care Advice:",
+        "mr": "सध्याची काळजी:",
+        "hi": "वर्तमान देखभाल:",
+    },
+    "crop_expected_harvest": {
+        "en": "Expected Harvest:",
+        "mr": "अपेक्षित काढणी:",
+        "hi": "संभावित कटाई:",
+    },
+    "crop_care_default": {
+        "en": "Monitor crops regularly and ensure adequate soil moisture and drainage.",
+        "mr": "पिकाची नियमित पाहणी करा, तण नियंत्रण ठेवा व पाण्याचा योग्य निचरा ठेवा.",
+        "hi": "फसल की नियमित निगरानी रखें, खरपतवार निकालें और उचित जल निकासी रखें।",
+    },
+    "crop_care_flowering": {
+        "en": "Avoid water stress during flowering to prevent flower drop; inspect pheromone traps regularly.",
+        "mr": "फुलोरा गळू नये म्हणून पाण्याचा ताण टाळा व बोंडअळी/किडींचे नियमित निरीक्षण करा.",
+        "hi": "फूल झड़ने से बचाने के लिए पानी की कमी न होने दें और कीटों पर नजर रखें।",
+    },
+    "crop_care_pod": {
+        "en": "Maintain consistent soil moisture for optimal pod and grain filling.",
+        "mr": "शेंगा/दाणे भरण्याच्या अवस्थेत पाण्याचा ताण पडू देऊ नका.",
+        "hi": "फलियां और दाने भरने के समय उचित नमी बनाए रखें।",
+    },
+    "crop_care_vegetative": {
+        "en": "Weed thoroughly and apply balanced nutrition according to recommended dosages.",
+        "mr": "पिकाची खुरपणी करून तण नियंत्रण करा आणि वेळेवर सूक्ष्म अन्नद्रव्ये द्या.",
+        "hi": "निराई करके खरपतवार निकालें और समय पर संतुलित खाद दें।",
+    },
+    "crop_care_maturity": {
+        "en": "Inspect maturity and plan harvesting on dry, sunny days for maximum grain quality.",
+        "mr": "पिक चांगले पक्व झाल्यावर स्वच्छ सूर्यप्रकाशात काढणीचे नियोजन करा.",
+        "hi": "फसल अच्छी तरह पकने पर सूखे व धूप वाले दिन कटाई की योजना बनाएं।",
+    },
+
+    # Aliases & Search helpers for Dashboard Cards
+    "ai_search_title": {
+        "en": "🤖 Ask Any Farming Question (AI Assistant)",
+        "mr": "🤖 शेतीविषयक काहीही विचारा (AI सल्लागार)",
+        "hi": "🤖 खेती से जुड़ा कुछ भी पूछें (AI सहायक)",
+    },
+    "ai_search_subtitle": {
+        "en": "Get instant university-verified answers on pest control, fertilizer dosages, and weather tips.",
+        "mr": "कीड नियंत्रण, खतांची मात्रा किंवा हवामानावर तात्काळ अचूक शास्त्रशुद्ध उपाय मिळवा.",
+        "hi": "कीट नियंत्रण, खाद की मात्रा या मौसम पर तुरंत सटीक वैज्ञानिक समाधान पाएं।",
+    },
+    "action_leaf_doctor_title": {
+        "en": "🌿 Scan Leaf & Disease",
+        "mr": "🌿 पिकांवरील रोग ओळखा",
+        "hi": "🌿 फसल रोग की पहचान",
+    },
+    "action_leaf_doctor_desc": {
+        "en": "Photo check & university guidance",
+        "mr": "पानाचा फोटो काढून उपाय तपासा",
+        "hi": "पत्ती का फोटो लेकर उपाय जानें",
+    },
+    "action_mandi_rates_title": {
+        "en": "💰 Today's Mandi Rates",
+        "mr": "💰 आजचे बाजारभाव",
+        "hi": "💰 आज के मंडी भाव",
+    },
+    "action_mandi_rates_desc": {
+        "en": "Compare APMC prices & net transport profit",
+        "mr": "बाजारभाव तुलना व वाहतूक नफा",
+        "hi": "मंडी भाव तुलना और परिवहन लाभ",
+    },
+    "action_weather_info_title": {
+        "en": "🌦️ Weather Information",
+        "mr": "🌦️ हवामान माहिती",
+        "hi": "🌦️ मौसम की जानकारी",
+    },
+    "action_weather_info_desc": {
+        "en": "Rain, wind & spray timing advisory",
+        "mr": "पाऊस, वारा व फवारणी अंदाज",
+        "hi": "बारिश, हवा और छिड़काव सलाह",
+    },
+    "action_govt_schemes_title": {
+        "en": "🏛️ Government Schemes",
+        "mr": "🏛️ सरकारी योजना",
+        "hi": "🏛️ सरकारी योजनाएं",
+    },
+    "action_govt_schemes_desc": {
+        "en": "PM-Kisan, PMFBY & state subsidies",
+        "mr": "पीएम-किसान, विमा व अनुदाने",
+        "hi": "पीएम-किसान, बीमा व सब्सिडी",
+    },
+    "action_farm_expenses_title": {
+        "en": "📒 Farm Expenses",
+        "mr": "📒 शेतीचा खर्च",
+        "hi": "📒 खेती का खर्च",
+    },
+    "action_farm_expenses_desc": {
+        "en": "Log seeds, fertilizers & labor costs",
+        "mr": "बियाणे, खते व मजुरीची नोंद",
+        "hi": "बीज, खाद और मजदूरी रिकॉर्ड",
+    },
+    "action_harvest_sales_title": {
+        "en": "🚜 Harvest & Sales",
+        "mr": "🚜 कापणी आणि विक्री",
+        "hi": "🚜 कटाई और बिक्री",
+    },
+    "action_harvest_sales_desc": {
+        "en": "Log yields, sales rates & net profit",
+        "mr": "उत्पादन, विक्री व खरा नफा",
+        "hi": "उपज, बिक्री और शुद्ध लाभ",
+    },
+    "tap_to_open": {
+        "en": "Open ➡️",
+        "mr": "उघडा ➡️",
+        "hi": "खोलें ➡️",
+    },
 }
 
 

@@ -147,6 +147,11 @@ def render_chat_page(farmer: AuthenticatedFarmer):
     sample_qs = SAMPLE_QUESTIONS_MAP.get(lang, SAMPLE_QUESTIONS_MAP["en"])
     sq_col1, sq_col2 = st.columns(2)
     clicked_prompt = None
+
+    # Pick up pending query sent from homepage
+    if st.session_state.get("pending_ai_query"):
+        clicked_prompt = st.session_state.pop("pending_ai_query")
+
     for idx, sq in enumerate(sample_qs):
         target_col = sq_col1 if idx % 2 == 0 else sq_col2
         with target_col:
