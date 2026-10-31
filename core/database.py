@@ -100,6 +100,21 @@ def init_db(bind_engine=None) -> None:
     except Exception as col_exc:
         logger.warning(f"Note during column migration on users: {col_exc}")
 
+    # Idempotently migrate schema if cost column is missing from farm_activities table
+    try:
+        if "farm_activities" in existing_tables:
+            act_cols = [c["name"] for c in inspector.get_columns("farm_activities")]
+            if "cost" not in act_cols:
+                logger.info("Migrating schema: adding 'cost' column to 'farm_activities' table...")
+                with target_engine.connect() as conn:
+                    from sqlalchemy import text
+                    conn.execute(text("ALTER TABLE farm_activities ADD COLUMN cost FLOAT DEFAULT 0.0"))
+                    conn.execute(text("UPDATE farm_activities SET cost = 0.0 WHERE cost IS NULL"))
+                    conn.commit()
+                logger.info("Successfully added 'cost' column to 'farm_activities' table.")
+    except Exception as act_exc:
+        logger.warning(f"Note during column migration on farm_activities: {act_exc}")
+
     _db_initialized = True
 
 

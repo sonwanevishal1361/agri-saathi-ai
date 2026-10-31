@@ -64,3 +64,4 @@ def downgrade() -> None:
         columns = [c['name'] for c in inspector.get_columns('users')]
         if 'role' in columns:
             op.drop_column('users', 'role')
+

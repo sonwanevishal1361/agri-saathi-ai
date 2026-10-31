@@ -37,6 +37,7 @@ class ActivityUpdate(BaseModel):
     unit: Optional[str] = Field(None, max_length=30)
     product_name: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
+    cost: Optional[float] = Field(None, ge=0)
 
 
 class ActivityResponse(BaseModel):
@@ -50,5 +51,6 @@ class ActivityResponse(BaseModel):
     unit: Optional[str]
     product_name: Optional[str]
     notes: Optional[str]
+    cost: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)

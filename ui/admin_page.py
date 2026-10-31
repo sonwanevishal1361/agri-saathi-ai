@@ -13,6 +13,7 @@ from core.exceptions import AuthorizationError
 from services.admin_service import AdminService
 from services.backup_service import BackupService
 from utils.formatting import format_inr
+from utils.logging_config import logger
 
 
 def render_admin_page(admin: AuthenticatedFarmer):
@@ -68,8 +69,31 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     with tab_overview:
         st.subheader("📊 Platform Health & System Overview")
-        with get_db() as db:
-            overview = AdminService.get_system_overview(db, admin)
+        try:
+            with get_db() as db:
+                overview = AdminService.get_system_overview(db, admin)
+        except Exception as e:
+            logger.exception("Failed to load platform overview: %s", e)
+            st.warning("⚠️ System overview metrics are temporarily unavailable. Please refresh.")
+            overview = {
+                "total_farmers": 0,
+                "active_farmers": 0,
+                "deactivated_farmers": 0,
+                "total_crops": 0,
+                "active_crops": 0,
+                "total_cultivated_acres": 0.0,
+                "total_activities": 0,
+                "total_expenses_count": 0,
+                "total_expense_amount": 0.0,
+                "total_harvest_count": 0,
+                "total_harvest_revenue": 0.0,
+                "total_harvest_quantity": 0.0,
+                "total_conversations": 0,
+                "total_messages": 0,
+                "farmer_questions_asked": 0,
+                "language_distribution": {},
+                "top_districts": {},
+            }
 
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         with kpi1:
@@ -175,15 +199,20 @@ def render_admin_page(admin: AuthenticatedFarmer):
         with f_c3:
             dist_filter = st.text_input("District Filter", placeholder="e.g. Pune, Wardha, Amravati...")
 
-        with get_db() as db:
-            farmers_list, total_matched = AdminService.list_farmers(
-                db=db,
-                admin=admin,
-                search=search_query,
-                district=dist_filter if dist_filter else None,
-                is_active=is_active_arg,
-                limit=100,
-            )
+        try:
+            with get_db() as db:
+                farmers_list, total_matched = AdminService.list_farmers(
+                    db=db,
+                    admin=admin,
+                    search=search_query,
+                    district=dist_filter if dist_filter else None,
+                    is_active=is_active_arg,
+                    limit=100,
+                )
+        except Exception as e:
+            logger.exception("Failed to query farmers list: %s", e)
+            st.warning("⚠️ Farmer accounts could not be retrieved at this moment.")
+            farmers_list, total_matched = [], 0
 
         st.markdown(f"**Found {total_matched} registered farmers matching filters**")
 
@@ -237,8 +266,19 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     with tab_crops:
         st.subheader("🌾 Crop Cultivation & Distribution Analytics")
-        with get_db() as db:
-            crop_analytics = AdminService.get_crop_analytics(db, admin)
+        try:
+            with get_db() as db:
+                crop_analytics = AdminService.get_crop_analytics(db, admin)
+        except Exception as e:
+            logger.exception("Failed to load crop analytics: %s", e)
+            st.warning("⚠️ Crop analytics are temporarily unavailable.")
+            crop_analytics = {
+                "popular_crops": [],
+                "growth_stages": {},
+                "status_distribution": {},
+                "district_crops": [],
+                "average_plot_size": 0.0,
+            }
 
         ca_col1, ca_col2 = st.columns([3, 2])
         with ca_col1:
@@ -278,8 +318,18 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     with tab_acts:
         st.subheader("🚜 Agricultural Operations & Field Activities")
-        with get_db() as db:
-            act_analytics = AdminService.get_activity_analytics(db, admin)
+        try:
+            with get_db() as db:
+                act_analytics = AdminService.get_activity_analytics(db, admin)
+        except Exception as e:
+            logger.exception("Failed to load activity analytics: %s", e)
+            st.warning("⚠️ Activity analytics are temporarily unavailable.")
+            act_analytics = {
+                "activity_types": [],
+                "crops_with_activities": {},
+                "total_activities": 0,
+                "total_activity_cost": 0.0,
+            }
 
         st.metric(
             label="Total Logged Field Operations",
@@ -316,8 +366,20 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     with tab_fin:
         st.subheader("💰 Platform Financial & Cultivation Economics")
-        with get_db() as db:
-            fin_analytics = AdminService.get_financial_analytics(db, admin)
+        try:
+            with get_db() as db:
+                fin_analytics = AdminService.get_financial_analytics(db, admin)
+        except Exception as e:
+            logger.exception("Failed to load financial analytics: %s", e)
+            st.warning("⚠️ Financial analytics are temporarily unavailable.")
+            fin_analytics = {
+                "categories": [],
+                "revenue_by_crop": [],
+                "total_expense": 0.0,
+                "total_revenue": 0.0,
+                "net_profit": 0.0,
+                "avg_cost_per_acre": 0.0,
+            }
 
         f_kpi1, f_kpi2, f_kpi3, f_kpi4 = st.columns(4)
         with f_kpi1:
@@ -363,8 +425,18 @@ def render_admin_page(admin: AuthenticatedFarmer):
         st.subheader("🤖 AI Advisor Usage & Topic Intelligence")
         st.caption("Privacy Notice: Individual conversations remain confidential. Aggregated topic frequencies and system volumes are shown.")
 
-        with get_db() as db:
-            ai_analytics = AdminService.get_ai_usage_analytics(db, admin)
+        try:
+            with get_db() as db:
+                ai_analytics = AdminService.get_ai_usage_analytics(db, admin)
+        except Exception as e:
+            logger.exception("Failed to load AI usage analytics: %s", e)
+            st.warning("⚠️ AI usage analytics are temporarily unavailable.")
+            ai_analytics = {
+                "total_conversations": 0,
+                "total_questions": 0,
+                "language_distribution": {},
+                "popular_topics": [],
+            }
 
         ai_k1, ai_k2 = st.columns(2)
         with ai_k1:

@@ -296,7 +296,7 @@ class AdminService:
                 func.sum(Crop.area).label("total_area"),
             )
             .group_by(Crop.name)
-            .order_by(desc("count"))
+            .order_by(desc(func.count(Crop.id)))
             .all()
         )
         popular_crops = [
@@ -355,36 +355,67 @@ class AdminService:
         """Aggregate farm activities breakdown, top operations, and costs."""
         require_admin(admin)
 
-        # Breakdown by activity type
-        type_rows = (
-            db.query(
-                FarmActivity.activity_type,
-                func.count(FarmActivity.id).label("count"),
-                func.sum(FarmActivity.cost).label("total_cost"),
+        activity_types: List[Dict[str, Any]] = []
+        try:
+            # Breakdown by activity type with cost aggregation
+            type_rows = (
+                db.query(
+                    FarmActivity.activity_type,
+                    func.count(FarmActivity.id).label("count"),
+                    func.coalesce(func.sum(FarmActivity.cost), 0.0).label("total_cost"),
+                )
+                .group_by(FarmActivity.activity_type)
+                .order_by(desc(func.count(FarmActivity.id)))
+                .all()
             )
-            .group_by(FarmActivity.activity_type)
-            .order_by(desc("count"))
-            .all()
-        )
-        activity_types = [
-            {
-                "activity_type": r[0] or "General",
-                "count": r[1],
-                "total_cost": round(float(r[2] or 0.0), 2),
-            }
-            for r in type_rows
-        ]
+            activity_types = [
+                {
+                    "activity_type": r[0] or "General",
+                    "count": r[1],
+                    "total_cost": round(float(r[2] or 0.0), 2),
+                }
+                for r in type_rows
+            ]
+        except Exception as e:
+            logger.warning(f"Activity analytics cost query failed, falling back to count only: {e}")
+            try:
+                db.rollback()
+                type_rows = (
+                    db.query(
+                        FarmActivity.activity_type,
+                        func.count(FarmActivity.id).label("count"),
+                    )
+                    .group_by(FarmActivity.activity_type)
+                    .order_by(desc(func.count(FarmActivity.id)))
+                    .all()
+                )
+                activity_types = [
+                    {
+                        "activity_type": r[0] or "General",
+                        "count": r[1],
+                        "total_cost": 0.0,
+                    }
+                    for r in type_rows
+                ]
+            except Exception as e2:
+                logger.error(f"Fallback activity breakdown query failed: {e2}")
+                db.rollback()
 
-        # Top crops receiving farm activities
-        top_crop_acts = (
-            db.query(Crop.name, func.count(FarmActivity.id))
-            .join(FarmActivity, Crop.id == FarmActivity.crop_id)
-            .group_by(Crop.name)
-            .order_by(desc(func.count(FarmActivity.id)))
-            .limit(10)
-            .all()
-        )
-        crops_with_activities = {r[0]: r[1] for r in top_crop_acts}
+        crops_with_activities: Dict[str, int] = {}
+        try:
+            # Top crops receiving farm activities
+            top_crop_acts = (
+                db.query(Crop.name, func.count(FarmActivity.id))
+                .join(FarmActivity, Crop.id == FarmActivity.crop_id)
+                .group_by(Crop.name)
+                .order_by(desc(func.count(FarmActivity.id)))
+                .limit(10)
+                .all()
+            )
+            crops_with_activities = {r[0]: r[1] for r in top_crop_acts}
+        except Exception as e:
+            logger.warning(f"Top crop activities query failed: {e}")
+            db.rollback()
 
         return {
             "activity_types": activity_types,
@@ -406,7 +437,7 @@ class AdminService:
                 func.sum(Expense.amount).label("total"),
             )
             .group_by(Expense.category)
-            .order_by(desc("total"))
+            .order_by(desc(func.sum(Expense.amount)))
             .all()
         )
         categories = [

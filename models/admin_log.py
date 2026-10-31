@@ -30,3 +30,4 @@ class AdminAuditLog(Base):
 
     def __repr__(self):
         return f"<AdminAuditLog {self.id} {self.action} by {self.admin_name}>"
+

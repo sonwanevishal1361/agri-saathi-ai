@@ -2,6 +2,7 @@
 
 import io
 import json
+from datetime import date
 import pytest
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -11,8 +12,10 @@ from core.exceptions import AuthorizationError
 from models.user import User
 from models.admin_log import AdminAuditLog
 from services.admin_service import AdminService
+from services.activity_service import ActivityService
 from services.backup_service import BackupService
 from services.user_service import UserService
+from schemas.activity import ActivityCreate, ActivityUpdate
 
 
 @pytest.fixture
@@ -254,3 +257,79 @@ def test_backup_and_audit_logging(db_session: Session, admin_user: Authenticated
     assert len(logs) >= 1
     assert logs[0]["action"] == "BACKUP_DB"
     assert logs[0]["resource_type"] == "backup"
+
+
+def test_activity_analytics_execution_and_cost_aggregation(
+    db_session: Session, admin_user: AuthenticatedFarmer, regular_farmer: AuthenticatedFarmer
+):
+    """Verify get_activity_analytics aggregates operations without SQLAlchemy ProgrammingError."""
+    # 1. Base analytics execution
+    initial_analytics = AdminService.get_activity_analytics(db_session, admin_user)
+    assert "activity_types" in initial_analytics
+    assert "crops_with_activities" in initial_analytics
+    assert "total_activities" in initial_analytics
+    assert "total_activity_cost" in initial_analytics
+    assert initial_analytics["total_activities"] >= 0
+    assert initial_analytics["total_activity_cost"] >= 0.0
+
+    # 2. Add an activity with cost
+    act = ActivityService.create_activity(
+        db=db_session,
+        farmer_id=regular_farmer.id,
+        activity_in=ActivityCreate(
+            activity_type="Fertilizer Application",
+            activity_date=date.today(),
+            description="Applied NPK 10:26:26",
+            cost=1250.0,
+        ),
+    )
+    assert act.cost == 1250.0
+
+    # 3. Check updated analytics
+    updated_analytics = AdminService.get_activity_analytics(db_session, admin_user)
+    assert updated_analytics["total_activities"] == initial_analytics["total_activities"] + 1
+    assert updated_analytics["total_activity_cost"] == initial_analytics["total_activity_cost"] + 1250.0
+
+    # Verify breakdown contains our activity type
+    fert_row = next(
+        (r for r in updated_analytics["activity_types"] if r["activity_type"] == "Fertilizer Application"),
+        None,
+    )
+    assert fert_row is not None
+    assert fert_row["count"] >= 1
+    assert fert_row["total_cost"] >= 1250.0
+
+
+def test_activity_persistence_and_update_with_cost(
+    db_session: Session, admin_user: AuthenticatedFarmer, regular_farmer: AuthenticatedFarmer
+):
+    """Verify activity cost persistence, updates, and inclusion in authorized exports."""
+    # Create with cost
+    act = ActivityService.create_activity(
+        db=db_session,
+        farmer_id=regular_farmer.id,
+        activity_in=ActivityCreate(
+            activity_type="Spraying",
+            activity_date=date.today(),
+            description="Insecticide spray against aphids",
+            cost=450.0,
+        ),
+    )
+    assert act.cost == 450.0
+
+    # Update cost
+    updated = ActivityService.update_activity(
+        db=db_session,
+        farmer_id=regular_farmer.id,
+        activity_id=act.id,
+        activity_in=ActivityUpdate(cost=600.0),
+    )
+    assert updated.cost == 600.0
+
+    # Verify export includes updated cost
+    json_bytes, _, _ = AdminService.export_data(db_session, admin_user, "activities", "json")
+    exported = json.loads(json_bytes.decode("utf-8"))
+    found = next((item for item in exported if item["activity_id"] == act.id), None)
+    assert found is not None
+    assert found["cost"] == 600.0
+    assert found["activity_type"] == "Spraying"

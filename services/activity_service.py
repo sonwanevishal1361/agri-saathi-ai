@@ -43,6 +43,7 @@ class ActivityService:
             unit=effective_in.unit.strip() if effective_in.unit else None,
             product_name=effective_in.product_name.strip() if effective_in.product_name else None,
             notes=effective_in.notes.strip() if effective_in.notes else None,
+            cost=float(effective_in.cost) if effective_in.cost is not None else None,
         )
         db.add(activity)
         db.commit()

@@ -24,16 +24,12 @@ class FarmActivity(Base):
     unit = Column(String(30), nullable=True)
     product_name = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
+    cost = Column(Float, nullable=True, default=None)
     created_at = Column(DateTime, default=utc_now, nullable=False)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     farmer = relationship("User", back_populates="activities")
     crop = relationship("Crop", back_populates="activities")
-
-    @property
-    def cost(self):
-        """Compatibility property for activity cost."""
-        return None
 
     def __repr__(self):
         return f"<FarmActivity {self.id} {self.activity_type} on {self.activity_date}>"
