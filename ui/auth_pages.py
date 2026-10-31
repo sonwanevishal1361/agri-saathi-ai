@@ -6,7 +6,8 @@ from schemas.user import UserRegister, UserLogin
 from services.user_service import UserService
 from core.exceptions import AuthenticationError, DuplicateRecordError, ValidationError
 from core.auth import AuthenticatedFarmer
-from ui.state import set_current_farmer, get_language, set_language
+from services.admin_service import AdminService
+from ui.state import set_current_farmer, get_language, set_language, set_page
 from utils.language import t
 
 
@@ -42,7 +43,11 @@ def render_auth_page():
             set_language(lang_choice)
             st.rerun()
 
-    tab_login, tab_register = st.tabs([f"🔑 {t('login', lang)}", f"📝 {t('register', lang)}"])
+    tab_login, tab_register, tab_admin = st.tabs([
+        f"🔑 {t('login', lang)}",
+        f"📝 {t('register', lang)}",
+        "🛠️ ॲडमिन (Admin Login)",
+    ])
 
     # ---------------- LOGIN TAB ----------------
     with tab_login:
@@ -79,6 +84,7 @@ def render_auth_page():
                                 district=user.district,
                                 village=user.village,
                                 is_active=user.is_active,
+                                role=getattr(user, "role", "farmer") or "farmer",
                             )
                             set_current_farmer(auth_farmer)
                             st.success(f"Welcome back, {user.full_name}! 👋")
@@ -163,6 +169,7 @@ def render_auth_page():
                             district=new_user.district,
                             village=new_user.village,
                             is_active=new_user.is_active,
+                            role=getattr(new_user, "role", "farmer") or "farmer",
                         )
                         set_current_farmer(auth_farmer)
                         st.success(f"Account registered successfully! Welcome to AgriSaathi AI, {new_user.full_name}!")
@@ -171,4 +178,66 @@ def render_auth_page():
                     st.error(f"⚠️ {str(e)}")
                 except Exception as e:
                     st.error(f"Registration error: {str(e)}")
+
+    # ---------------- DEVELOPER / ADMIN PORTAL TAB ----------------
+    with tab_admin:
+        st.subheader("🛠️ Developer & Administrator Portal")
+        st.caption("Secure role-based access for platform owner, developers, and system administrators.")
+        with st.form("admin_login_form", clear_on_submit=False):
+            admin_identifier = st.text_input(
+                "👤 Admin Email / Phone",
+                placeholder="e.g. admin@agrisaathi.com or 9999999999",
+                key="admin_login_id",
+            )
+            admin_password = st.text_input(
+                "🔒 Administrator Password",
+                type="password",
+                placeholder="Enter administrator password",
+                key="admin_login_pw",
+            )
+            admin_submitted = st.form_submit_button("🚀 Authenticate Admin Access", use_container_width=True, type="primary")
+
+            if admin_submitted:
+                if not admin_identifier or not admin_password:
+                    st.error("Please enter both admin identifier and password.")
+                else:
+                    try:
+                        with get_db() as db:
+                            admin_user = UserService.authenticate_farmer(
+                                db,
+                                UserLogin(identifier=admin_identifier, password=admin_password),
+                            )
+                            if getattr(admin_user, "role", "farmer") != "admin":
+                                raise AuthenticationError("Access denied: This account does not possess administrator privileges.")
+
+                            auth_admin = AuthenticatedFarmer(
+                                id=admin_user.id,
+                                full_name=admin_user.full_name,
+                                email=admin_user.email,
+                                phone=admin_user.phone,
+                                preferred_language=admin_user.preferred_language or lang,
+                                state=admin_user.state,
+                                district=admin_user.district,
+                                village=admin_user.village,
+                                is_active=admin_user.is_active,
+                                role="admin",
+                            )
+                            set_current_farmer(auth_admin)
+                            set_page("admin")
+
+                            # Log login audit trail
+                            AdminService.log_action(
+                                db=db,
+                                admin=auth_admin,
+                                action="LOGIN",
+                                resource_type="system",
+                                details={"portal": "admin_login_tab"},
+                            )
+
+                            st.success(f"Admin authentication verified! Welcome, {admin_user.full_name}.")
+                            st.rerun()
+                    except AuthenticationError as e:
+                        st.error(f"❌ {e.message}")
+                    except Exception as e:
+                        st.error(f"Admin authentication error: {str(e)}")
 

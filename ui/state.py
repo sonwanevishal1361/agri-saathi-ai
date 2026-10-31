@@ -18,6 +18,7 @@ PAGE_TO_SECTION = {
     "knowledge": "market_schemes",
     "image": "market_schemes",
     "profile": "profile",
+    "admin": "admin",
 }
 
 

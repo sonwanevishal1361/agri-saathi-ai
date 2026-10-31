@@ -9,6 +9,7 @@ from models.conversation import Conversation, Message
 from models.knowledge import CropKnowledge, KnowledgeDocument
 from models.health_observation import HealthObservation
 from models.mandi_history import MandiPriceHistory, MandiPriceCache
+from models.admin_log import AdminAuditLog
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "HealthObservation",
     "MandiPriceHistory",
     "MandiPriceCache",
+    "AdminAuditLog",
 ]

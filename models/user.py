@@ -27,6 +27,7 @@ class User(Base):
     farm_area_unit = Column(String(20), default="Acre", nullable=False)
     soil_type = Column(String(100), nullable=True)
     irrigation_method = Column(String(100), nullable=True)
+    role = Column(String(20), default="farmer", nullable=False, index=True)  # farmer, admin
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=utc_now, nullable=False)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
@@ -38,6 +39,7 @@ class User(Base):
     harvest_records = relationship("HarvestRecord", back_populates="farmer", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="farmer", cascade="all, delete-orphan")
     health_observations = relationship("HealthObservation", back_populates="farmer", cascade="all, delete-orphan")
+    admin_logs = relationship("AdminAuditLog", back_populates="admin")
 
     def __repr__(self):
         return f"<User {self.id} {self.full_name}>"

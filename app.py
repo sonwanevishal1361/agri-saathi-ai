@@ -29,6 +29,7 @@ from ui.market_page import render_market_page
 from ui.schemes_page import render_schemes_page
 from ui.image_page import render_image_page
 from ui.profile_page import render_profile_page
+from ui.admin_page import render_admin_page
 from utils.language import t
 
 
@@ -96,17 +97,32 @@ with top_col2:
         st.rerun()
 
 with top_col3:
-    hdr_p_col, hdr_l_col = st.columns(2)
-    with hdr_p_col:
-        if st.button("👤 " + t("profile", lang), key="hdr_btn_profile", use_container_width=True):
-            set_page("profile")
-            st.rerun()
-    with hdr_l_col:
-        if st.button("🚪 " + t("logout", lang), key="hdr_btn_logout", use_container_width=True):
-            logout()
-            st.rerun()
+    if current_farmer.is_admin:
+        hdr_a_col, hdr_p_col, hdr_l_col = st.columns([4, 3, 3])
+        with hdr_a_col:
+            if st.button("🛠️ Admin", key="hdr_btn_admin", use_container_width=True, type="primary"):
+                set_page("admin")
+                st.rerun()
+        with hdr_p_col:
+            if st.button("👤 " + t("profile", lang), key="hdr_btn_profile", use_container_width=True):
+                set_page("profile")
+                st.rerun()
+        with hdr_l_col:
+            if st.button("🚪 " + t("logout", lang), key="hdr_btn_logout", use_container_width=True):
+                logout()
+                st.rerun()
+    else:
+        hdr_p_col, hdr_l_col = st.columns(2)
+        with hdr_p_col:
+            if st.button("👤 " + t("profile", lang), key="hdr_btn_profile", use_container_width=True):
+                set_page("profile")
+                st.rerun()
+        with hdr_l_col:
+            if st.button("🚪 " + t("logout", lang), key="hdr_btn_logout", use_container_width=True):
+                logout()
+                st.rerun()
 
-# 6. Primary 5-Section Mobile Navigation Bar
+# 6. Primary Mobile Navigation Bar
 sections = {
     "home": f"🏠 {t('nav_home', lang)}",
     "chat": f"🤖 {t('nav_ask_ai', lang)}",
@@ -114,6 +130,8 @@ sections = {
     "market_schemes": f"📈 {t('nav_market_schemes', lang)}",
     "profile": f"👤 {t('nav_profile', lang)}",
 }
+if current_farmer.is_admin:
+    sections["admin"] = "🛠️ Admin"
 
 active_sec = st.session_state.get("active_section", "home")
 if active_sec not in sections:
@@ -136,6 +154,8 @@ for idx, sk in enumerate(sec_keys):
                 set_page("market")
             elif sk == "profile":
                 set_page("profile")
+            elif sk == "admin":
+                set_page("admin")
             st.rerun()
 
 st.markdown("<hr style='margin: 12px 0 16px 0; border: none; border-top: 1.5px solid #c8e6c9;' />", unsafe_allow_html=True)
@@ -231,6 +251,13 @@ with st.sidebar:
         set_page("profile")
         st.rerun()
 
+    if current_farmer.is_admin:
+        st.markdown("---")
+        st.markdown("##### 🛠️ Developer & Admin")
+        if st.button("🛠️ Admin Panel", key="sb_nav_admin", use_container_width=True, type="primary"):
+            set_page("admin")
+            st.rerun()
+
     st.markdown("---")
     if st.button(f"🚪 {t('logout', lang)}", key="sb_logout_btn", use_container_width=True):
         logout()
@@ -239,6 +266,12 @@ with st.sidebar:
 # 9. Render Selected Page
 if active_page == "dashboard":
     render_dashboard(current_farmer)
+elif active_page == "admin":
+    if not current_farmer or not current_farmer.is_admin:
+        st.error("⛔ प्रवेश नाकारला / Access Denied: Administrator privileges required.")
+        set_page("dashboard")
+        st.rerun()
+    render_admin_page(current_farmer)
 elif active_page == "crops":
     render_crops_page(current_farmer)
 elif active_page == "crop_detail":

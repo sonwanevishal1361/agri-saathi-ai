@@ -7,7 +7,7 @@ from core.exceptions import AuthorizationError
 
 @dataclass
 class AuthenticatedFarmer:
-    """Authenticated farmer session identity."""
+    """Authenticated user/farmer session identity."""
     id: str
     full_name: str
     email: Optional[str]
@@ -17,6 +17,27 @@ class AuthenticatedFarmer:
     district: Optional[str]
     village: Optional[str]
     is_active: bool
+    role: str = "farmer"  # "farmer" or "admin"
+
+    @property
+    def is_admin(self) -> bool:
+        """Return True if user possesses administrator role."""
+        return self.role == "admin"
+
+
+# Alias for general user session
+AuthenticatedUser = AuthenticatedFarmer
+
+
+def require_admin(user: Optional[AuthenticatedFarmer]) -> None:
+    """Enforce administrator role for protected developer/admin operations.
+
+    Raises AuthorizationError if the user is unauthenticated or not an administrator.
+    """
+    if not user:
+        raise AuthorizationError("Authentication required. Please log in as an administrator.")
+    if user.role != "admin":
+        raise AuthorizationError("Access denied. Developer / Administrator privileges required.")
 
 
 def verify_farmer_ownership(current_farmer_id: str, resource_farmer_id: str, resource_name: str = "Record") -> None:

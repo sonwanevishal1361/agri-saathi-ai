@@ -86,6 +86,20 @@ def init_db(bind_engine=None) -> None:
         logger.error("CRITICAL: 'users' table missing after Base.metadata.create_all!")
         raise RuntimeError("Database initialization failed: 'users' table was not created.")
 
+    # Idempotently migrate schema if role column is missing from users table
+    try:
+        user_cols = [c["name"] for c in inspector.get_columns("users")]
+        if "role" not in user_cols:
+            logger.info("Migrating schema: adding 'role' column to 'users' table...")
+            with target_engine.connect() as conn:
+                from sqlalchemy import text
+                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'farmer' NOT NULL"))
+                conn.execute(text("UPDATE users SET role = 'farmer' WHERE role IS NULL OR role = ''"))
+                conn.commit()
+            logger.info("Successfully added 'role' column to 'users' table.")
+    except Exception as col_exc:
+        logger.warning(f"Note during column migration on users: {col_exc}")
+
     _db_initialized = True
 
 
@@ -142,6 +156,14 @@ def bootstrap_database() -> bool:
                     logger.info("Initial crop knowledge library seeded successfully.")
         except Exception as seed_exc:
             logger.warning(f"Initial knowledge seeding skipped/failed: {seed_exc}")
+
+        # Seed default admin user if missing
+        try:
+            from services.user_service import UserService
+            with get_db() as db:
+                UserService.seed_admin_if_missing(db)
+        except Exception as admin_exc:
+            logger.warning(f"Admin seeding check skipped: {admin_exc}")
 
         return True
     except Exception as exc:

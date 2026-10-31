@@ -146,3 +146,45 @@ class UserService:
         db.delete(user)
         db.commit()
         logger.warning(f"Farmer account deleted permanently: {farmer_id}")
+
+    @staticmethod
+    def seed_admin_if_missing(db: Session) -> Optional[User]:
+        """Ensure at least one administrator account exists in the database."""
+        admin = db.query(User).filter(User.role == "admin").first()
+        if admin:
+            return admin
+
+        from config import settings
+        admin_email = settings.ADMIN_DEFAULT_EMAIL.strip().lower()
+        admin_phone = settings.ADMIN_DEFAULT_PHONE.strip()
+        admin_pass = settings.ADMIN_DEFAULT_PASSWORD
+
+        # Check if user with that email or phone exists
+        existing = db.query(User).filter(
+            or_(User.email == admin_email, User.phone == admin_phone)
+        ).first()
+
+        if existing:
+            existing.role = "admin"
+            db.commit()
+            logger.info(f"Promoted existing user {existing.id} to admin role.")
+            return existing
+
+        hashed = hash_password(admin_pass)
+        admin_user = User(
+            full_name="Platform Developer Admin (Vishal Sonwane)",
+            email=admin_email,
+            phone=admin_phone,
+            password_hash=hashed,
+            preferred_language="en",
+            state="Maharashtra",
+            district="Pune",
+            village="Headquarters",
+            role="admin",
+            is_active=True,
+        )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+        logger.info(f"Seeded default developer admin account: {admin_user.email} (ID: {admin_user.id})")
+        return admin_user

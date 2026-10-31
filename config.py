@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     DEFAULT_LANGUAGE: str = "en"
     SUPPORTED_LANGUAGES: List[str] = ["en", "mr", "hi"]
 
+    # Developer / Admin Credentials (Configurable via .env)
+    ADMIN_DEFAULT_EMAIL: str = "admin@agrisaathi.com"
+    ADMIN_DEFAULT_PHONE: str = "9999999999"
+    ADMIN_DEFAULT_PASSWORD: str = "Admin@Agri2026!"
+
     # Database
     DATABASE_URL: str = Field(
         default=f"sqlite:///{(BASE_DIR / 'data' / 'agrisaathi.db').as_posix()}",
