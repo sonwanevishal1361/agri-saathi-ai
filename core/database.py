@@ -91,11 +91,10 @@ def init_db(bind_engine=None) -> None:
         user_cols = [c["name"] for c in inspector.get_columns("users")]
         if "role" not in user_cols:
             logger.info("Migrating schema: adding 'role' column to 'users' table...")
-            with target_engine.connect() as conn:
+            with target_engine.begin() as conn:
                 from sqlalchemy import text
                 conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'farmer' NOT NULL"))
                 conn.execute(text("UPDATE users SET role = 'farmer' WHERE role IS NULL OR role = ''"))
-                conn.commit()
             logger.info("Successfully added 'role' column to 'users' table.")
     except Exception as col_exc:
         logger.warning(f"Note during column migration on users: {col_exc}")
@@ -106,11 +105,10 @@ def init_db(bind_engine=None) -> None:
             act_cols = [c["name"] for c in inspector.get_columns("farm_activities")]
             if "cost" not in act_cols:
                 logger.info("Migrating schema: adding 'cost' column to 'farm_activities' table...")
-                with target_engine.connect() as conn:
+                with target_engine.begin() as conn:
                     from sqlalchemy import text
                     conn.execute(text("ALTER TABLE farm_activities ADD COLUMN cost FLOAT DEFAULT 0.0"))
                     conn.execute(text("UPDATE farm_activities SET cost = 0.0 WHERE cost IS NULL"))
-                    conn.commit()
                 logger.info("Successfully added 'cost' column to 'farm_activities' table.")
     except Exception as act_exc:
         logger.warning(f"Note during column migration on farm_activities: {act_exc}")
@@ -124,15 +122,10 @@ def get_db() -> Generator[Session, None, None]:
     global _db_initialized
     if not _db_initialized:
         try:
-            inspector = inspect(engine)
-            if "users" not in inspector.get_table_names():
-                logger.info("Database not initialized yet. Auto-initializing from get_db()...")
-                init_db()
-            else:
-                _db_initialized = True
-        except Exception as e:
-            logger.warning(f"Error inspecting tables in get_db: {e}. Running init_db()...")
             init_db()
+        except Exception as e:
+            logger.warning(f"Error during init_db in get_db: {e}")
+            _db_initialized = True
 
     db = SessionLocal()
     try:

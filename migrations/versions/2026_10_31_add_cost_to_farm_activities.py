@@ -39,3 +39,4 @@ def downgrade() -> None:
         columns = [c['name'] for c in inspector.get_columns('farm_activities')]
         if 'cost' in columns:
             op.drop_column('farm_activities', 'cost')
+

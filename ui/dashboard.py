@@ -16,6 +16,7 @@ from services.weather_service import WeatherService
 from services.mandi_service import MandiService
 from utils.formatting import format_inr, format_date
 from utils.language import t
+from utils.logging_config import logger
 from ui.state import get_language, set_page
 
 
@@ -101,11 +102,17 @@ def render_dashboard(farmer: AuthenticatedFarmer):
     )
 
     # Fetch farmer data
+    recent_activities: List[Any] = []
+    activities_load_error = False
     with get_db() as db:
         active_crops = CropService.list_crops(db, farmer.id, status="active")
-        recent_activities = ActivityService.list_activities(db, farmer.id, limit=3)
         expense_summary = ExpenseService.get_expense_summary(db, farmer.id)
         harvest_summary = HarvestService.get_harvest_summary(db, farmer.id)
+        try:
+            recent_activities = ActivityService.list_activities(db, farmer.id, limit=3)
+        except Exception as e:
+            logger.exception("Failed to load recent activities for farmer ID %s: %s", farmer.id, e)
+            activities_load_error = True
 
     # ---------------- 2. LIVE WEATHER & PRACTICAL FARMER GUIDANCE ----------------
     state_query = farmer.state or "Maharashtra"
@@ -472,10 +479,18 @@ def render_dashboard(farmer: AuthenticatedFarmer):
             set_page("harvest")
             st.rerun()
 
-    # ---------------- 8. RECENT FARM DIARY ACTIVITIES (IF ANY) ----------------
-    if recent_activities:
-        st.markdown("<hr style='margin: 28px 0 24px 0; border: none; border-top: 1.5px solid #c8e6c9;' />", unsafe_allow_html=True)
-        st.subheader(f"📅 {t('tab_diary', lang)} ({t('recent_entries', lang)})")
+    # ---------------- 8. RECENT FARM DIARY ACTIVITIES ----------------
+    st.markdown("<hr style='margin: 28px 0 24px 0; border: none; border-top: 1.5px solid #c8e6c9;' />", unsafe_allow_html=True)
+    st.subheader(f"📅 {t('tab_diary', lang)} ({t('recent_entries', lang)})")
+
+    if activities_load_error:
+        err_msg = {
+            "mr": "⚠️ शेती कृती लोड करताना अडचण आली. कृपया थोड्या वेळाने पुन्हा तपासा.",
+            "hi": "⚠️ कृषि गतिविधियां लोड करते समय समस्या आई। कृपया थोड़ी देर बाद पुनः देखें।",
+            "en": "⚠️ Recent farm activities could not be loaded at this time. Please try refreshing.",
+        }.get(lang, "⚠️ Recent farm activities could not be loaded at this time.")
+        st.warning(err_msg)
+    elif recent_activities:
         for act in recent_activities:
             with st.container(border=True):
                 act_d = format_date(act.activity_date)
@@ -484,3 +499,13 @@ def render_dashboard(farmer: AuthenticatedFarmer):
                 st.markdown(f"**{crop_label}{act.activity_type}** ({act_d}){cost_lbl}")
                 if act.description:
                     st.caption(act.description[:100])
+    else:
+        empty_msg = {
+            "mr": "अजून कोणतीही शेती कृती नोंदवलेली नाही. दैनंदिन कामांची नोंद ठेवण्यासाठी 'शेत रोजनिशी' वापरा.",
+            "hi": "अभी तक कोई कृषि गतिविधि दर्ज नहीं की गई है। दैनिक कार्यों का रिकॉर्ड रखने के लिए 'फार्म डायरी' का उपयोग करें।",
+            "en": "No farm activities recorded yet. Use the Farm Diary to track your daily field operations.",
+        }.get(lang, "No farm activities recorded yet.")
+        st.info(f"📝 {empty_msg}")
+        if st.button(f"➕ {t('quick_log_activity', lang)}", key="dash_empty_act_btn"):
+            set_page("diary")
+            st.rerun()

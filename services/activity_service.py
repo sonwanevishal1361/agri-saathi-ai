@@ -2,12 +2,14 @@
 
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, text
+from sqlalchemy.exc import OperationalError
 from models.activity import FarmActivity
 from models.crop import Crop
 from schemas.activity import ActivityCreate, ActivityUpdate
 from core.exceptions import NotFoundError, ValidationError
 from core.auth import verify_farmer_ownership
+from utils.logging_config import logger
 
 
 class ActivityService:
@@ -53,7 +55,21 @@ class ActivityService:
     @staticmethod
     def get_activity(db: Session, farmer_id: str, activity_id: str) -> FarmActivity:
         """Get a single activity with ownership check."""
-        activity = db.query(FarmActivity).filter(FarmActivity.id == activity_id).first()
+        try:
+            activity = db.query(FarmActivity).filter(FarmActivity.id == activity_id).first()
+        except OperationalError as op_err:
+            err_msg = str(op_err).lower()
+            if "cost" in err_msg and ("no such column" in err_msg or "does not exist" in err_msg):
+                logger.warning("Missing 'cost' column detected in get_activity. Executing self-healing migration...")
+                db.rollback()
+                if db.bind is not None:
+                    with db.bind.begin() as conn:
+                        conn.execute(text("ALTER TABLE farm_activities ADD COLUMN cost FLOAT DEFAULT 0.0"))
+                        conn.execute(text("UPDATE farm_activities SET cost = 0.0 WHERE cost IS NULL"))
+                activity = db.query(FarmActivity).filter(FarmActivity.id == activity_id).first()
+            else:
+                raise
+
         if not activity:
             raise NotFoundError(f"Activity {activity_id} not found.")
         verify_farmer_ownership(farmer_id, activity.farmer_id, resource_name="Activity")
@@ -73,7 +89,26 @@ class ActivityService:
             query = query.filter(FarmActivity.crop_id == crop_id)
         if activity_type and activity_type != "all":
             query = query.filter(FarmActivity.activity_type == activity_type)
-        return query.order_by(desc(FarmActivity.activity_date), desc(FarmActivity.created_at)).limit(limit).all()
+
+        try:
+            return query.order_by(desc(FarmActivity.activity_date), desc(FarmActivity.created_at)).limit(limit).all()
+        except OperationalError as op_err:
+            err_msg = str(op_err).lower()
+            if "cost" in err_msg and ("no such column" in err_msg or "does not exist" in err_msg):
+                logger.warning("Missing 'cost' column detected in list_activities. Executing self-healing migration...")
+                try:
+                    db.rollback()
+                    if db.bind is not None:
+                        with db.bind.begin() as conn:
+                            conn.execute(text("ALTER TABLE farm_activities ADD COLUMN cost FLOAT DEFAULT 0.0"))
+                            conn.execute(text("UPDATE farm_activities SET cost = 0.0 WHERE cost IS NULL"))
+                    logger.info("Successfully applied self-healing column migration. Retrying list_activities query...")
+                    return query.order_by(desc(FarmActivity.activity_date), desc(FarmActivity.created_at)).limit(limit).all()
+                except Exception as heal_exc:
+                    logger.error(f"Failed to auto-heal farm_activities table: {heal_exc}")
+                    db.rollback()
+                    raise
+            raise
 
     @staticmethod
     def update_activity(db: Session, farmer_id: str, activity_id: str, activity_in: ActivityUpdate) -> FarmActivity:

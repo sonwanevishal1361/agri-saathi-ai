@@ -42,11 +42,7 @@ st.set_page_config(
 )
 
 # 2. Automatic Database Bootstrap (Streamlit Community Cloud & Production Ready)
-@st.cache_resource(show_spinner=False)
-def _st_bootstrap() -> bool:
-    return bootstrap_database()
-
-_st_bootstrap()
+bootstrap_database()
 
 # 3. Inject Shared Theme & Mobile Styles
 inject_custom_theme()
