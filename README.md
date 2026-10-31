@@ -1,70 +1,83 @@
 # 🌱 AgriSaathi AI (कृषी साथी AI)
 > **Your Smart Farming Companion | शेतकऱ्यांचा विश्वासू डिजिटल साथीदार | किसानों का सच्चा साथी**  
-> **Platform Architect & Creator:** **Vishal Sonwane**
+> **Platform Architect & Creator:** **Vishal Sonwane**  
+> **GitHub Repository:** [https://github.com/sonwanevishal1361/agri-saathi-ai.git](https://github.com/sonwanevishal1361/agri-saathi-ai.git)
 
-AgriSaathi AI is a comprehensive, production-grade agricultural assistance platform designed specifically for Indian farmers. It bridges traditional agronomic science with modern artificial intelligence, empowering farmers with verified crop guides, real-time weather forecasts, APMC mandi market rates, government subsidy schemes, interactive symptom diagnosis, and multi-turn AI advice in **Marathi**, **Hindi**, and **English**.
+AgriSaathi AI is a comprehensive, production-grade agricultural assistance platform designed specifically for Indian farmers. It bridges traditional agronomic science with modern artificial intelligence, empowering farmers with verified crop guides, real-time weather forecasts with spray advisories, multi-market APMC mandi price comparisons, government subsidy schemes, interactive symptom diagnosis, and multi-turn AI advice in **Marathi (मराठी)**, **Hindi (हिंदी)**, and **English**.
 
 Powered primarily by the ultra-fast **Google Gemini API** (`gemini-3.5-flash-lite` via the official `google-genai` SDK), with optional offline CPU fallback to **Local Ollama** (`qwen2.5:3b`).
 
+> [!TIP]
+> **Complete Technical Documentation**: For the exhaustive architectural blueprint, ER diagrams, schema reference, and deployment procedures, see [DOCUMENTATION.md](DOCUMENTATION.md).
+
 ---
 
-## 🌾 Core Features
+## 🌾 Core Capabilities
 
-1. **Farmer Account & Profile**:
-   - Secure Argon2id password hashing and session management.
-   - Farm profile tracking (state, district, village, acreage, soil classification, irrigation type).
-   - Strict per-tenant authorization preventing any cross-farmer data access.
+1. **Farmer-Friendly Companion Dashboard**:
+   - Clean, welcoming agricultural interface designed for rural farmers.
+   - Live weather guidance translating wind and precipitation into practical spray advisories.
+   - Crop cards tracking variety, sowing date, acreage, and stage-specific care advice.
+   - Quick action shortcuts to all core farming tools.
 
-2. **Crop Lifecycle Management**:
-   - Track active and harvested crops (sowing date, expected harvest, growth stage, plot name).
-   - Growth stages: Sowing, Vegetative, Flowering, Boll/Pod Formation, Ripening, Harvesting.
+2. **Multi-Market APMC Price Comparison (Agmarknet)**:
+   - Integrates live Government of India Agmarknet data (`data.gov.in`).
+   - Evaluates road freight and ranks APMC mandis by **estimated net return (₹/Quintal)**.
+   - Displays modal, minimum, and maximum prices with clear data freshness tags.
 
-3. **Farm Diary & Activities**:
+3. **Multilingual AI Agronomist (Google Gemini)**:
+   - Fast (<2s) context-aware streaming inference powered by `gemini-3.5-flash-lite`.
+   - Native support for Marathi (`mr`), Hindi (`hi`), and English (`en`).
+   - Bounded multi-turn conversational memory with strict tenant isolation.
+   - Built-in guardrails against dangerous or fabricated pesticide dosages.
+
+4. **Agricultural Knowledge Retrieval (Lightweight TF-IDF RAG)**:
+   - Grounded in verified packages of practices from ICAR, CICR Nagpur, and IISR Indore.
+   - Transparent citations with official research institute titles and portal links.
+
+5. **Crop Lifecycle & Plot Management**:
+   - Tracks plots across 6 agronomic stages: Sowing, Vegetative, Flowering, Pod/Boll Development, Maturity, and Harvesting.
+
+6. **Farm Diary & Field Operations**:
    - Digital log for weeding, spraying, fertilizing, irrigation, pruning, and harvesting.
-   - Linked to specific crop plots or general farm operations.
+   - Tracks inputs, products, quantities, and operational costs.
+   - Equipped with **self-healing automatic schema migration**.
 
-4. **Farm Expenses & Financial Tracking**:
-   - Track input costs across seeds, fertilizers, pesticides, labor, diesel, machinery rentals, and transport.
-   - Categorical breakdown and visual financial metrics.
+7. **Farm Expenses & Financial Tracking**:
+   - Input cost tracking across seeds, fertilizers, pesticides, labor, diesel, machinery rentals, and transport.
+   - Real-time financial metrics and investment per acre.
 
-5. **Harvest Records & Net Balance**:
-   - Log harvested quantities, units (Quintal, Tonne, Kg), selling prices, and buyer APMC markets.
-   - Real profit calculations: Total Harvest Revenue minus Recorded Crop Expenses.
-
-6. **Primary Cloud AI Advisor (Google Gemini API)**:
-   - Ultra-fast (<2s) context-aware streaming inference powered by `gemini-3.5-flash-lite` using the official `google-genai` SDK.
-   - Multilingual response preferences: Marathi (`mr`), Hindi (`hi`), English (`en`).
-   - Bounded multi-turn conversation memory with strict tenant data isolation.
-   - Handles network timeouts, quota limits, and API errors gracefully.
-
-7. **Optional Offline AI Fallback (Local Ollama)**:
-   - Optional fallback controlled by `ENABLE_OLLAMA_FALLBACK=true` (or standalone mode via `AI_PROVIDER=ollama`).
-   - Powered by `qwen2.5:3b` running on local CPU via `ollama serve`.
-
-8. **Agricultural Knowledge Retrieval (Lightweight TF-IDF RAG)**:
-   - Grounded in verified packages of practices from ICAR, CICR Nagpur, IISR Indore, and State Agricultural Universities.
-   - Transparent citations: Displays official institute titles and portal links.
-   - Prompt injection guardrails: Untrusted reference material boundaries.
-   - Strict safety instructions against fabricating chemical pesticide dosages.
+8. **Harvest Records & Net Profitability**:
+   - Log harvested quantities, units (Quintal, Tonne, Kg), and selling prices.
+   - Real net balance: $\text{Total Harvest Revenue} - \text{Cultivation Expenses}$.
 
 9. **Crop Health & Symptom Analyzer**:
-   - Upload crop leaf/stem/fruit photos (JPG, PNG validated via Pillow magic bytes).
-   - Symptom questionnaire for localized diagnosis with university guidelines.
-   - Honest transparency notice: local text model does not claim automated vision inference.
+   - Secure image upload (JPG, PNG validated via Pillow magic bytes).
+   - Structured 4-step diagnostic questionnaire with agricultural university guidelines.
 
-10. **Live Weather & Agricultural Advisories**:
-    - Integrated with Open-Meteo API for real-time district forecasts across India.
-    - Current weather (temp, humidity, rain, wind) + 5-day forecast.
-    - Uncertainty-aware spray postponement and irrigation alerts.
+10. **Government Agricultural Schemes Directory**:
+    - Verified central and Maharashtra state schemes (PM-KISAN, Namo Shetkari, PMFBY, Soil Health Card, PMKSY, KCC, e-NAM).
+    - Clear eligibility criteria and direct links to official application portals.
 
-11. **APMC Mandi Market Prices**:
-    - Agmarknet verified benchmark rates for major Indian crops across state mandis.
-    - Transparent data mode labeling (Benchmark vs Live API).
-    - Modal price, min/max prices, and official portal links (`https://agmarknet.gov.in/`).
+11. **Developer Admin Panel & Data Management**:
+    - Role-Based Access Control (RBAC) isolating admin operations from standard farmers.
+    - 9-tab dashboard: Overview KPIs, Farmer Directory, Crop Analytics, Activity Trends, Financial Health, AI Topics, Data Exports, Backups, and Audit Logs.
+    - Multi-format authorized exports in **CSV** (UTF-8 BOM for Excel), **Excel (.xlsx)**, and **JSON**.
+    - Live atomic SQLite backups and pre-restore safety snapshots.
 
-12. **Government Agricultural Schemes**:
-    - Verified central and state schemes (PM-KISAN, PMFBY, Soil Health Card, PMKSY, KCC, e-NAM, Namo Shetkari).
-    - Clear eligibility summaries, subsidy benefits, and direct links to official application portals.
+12. **Production PostgreSQL Migration Engine**:
+    - Topological table migration CLI (`scripts/migrate_sqlite_to_postgres.py`) preserving all UUIDs, timestamps, and relationships.
+
+---
+
+## 🛠️ Developer Administrator Login
+
+AgriSaathi AI includes a dedicated administrator login for application owners:
+- **Email:** `admin@agrisaathi.com`
+- **Password:** `Admin@Agri2026!`
+- **Access Route:** Login screen $\rightarrow$ 3rd tab: **`🛠️ ॲडमिन (Admin Login)`**.
+
+*(Configurable via `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` in `.env`).*
 
 ---
 
@@ -88,10 +101,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configure Gemini API Key & Environment
-You can configure your `GEMINI_API_KEY` either via `.env` or directly in PowerShell.
-
-#### Option A: Using `.env` file (Recommended for development)
+### 4. Configure Gemini API Key
 Copy `.env.example` to `.env`:
 ```powershell
 Copy-Item .env.example .env
@@ -103,30 +113,14 @@ GEMINI_API_KEY=your_actual_gemini_api_key_here
 GEMINI_MODEL=gemini-3.5-flash-lite
 ENABLE_OLLAMA_FALLBACK=false
 ```
-*(Note: `.env` is listed in `.gitignore` and is never committed to Git).*
-
-#### Option B: Set Environment Variable in PowerShell (Session-only)
-```powershell
-$env:GEMINI_API_KEY = "your_actual_gemini_api_key_here"
-$env:AI_PROVIDER = "gemini"
-```
 
 ### 5. Initialize Database & Seed Verified Agronomic Knowledge
 ```powershell
-# Initialize SQLite database and seed verified ICAR crop knowledge & RAG documents
 python scripts/seed_knowledge.py
 ```
 
-### 6. (Optional) Local Ollama Fallback
-If you wish to enable offline Ollama fallback:
-```powershell
-# Set ENABLE_OLLAMA_FALLBACK=true in .env, then in a separate terminal:
-ollama serve
-ollama pull qwen2.5:3b
-```
-
-### 7. Run the Application
-Launch the AgriSaathi AI Streamlit interface:
+### 6. Run the Application
+Launch the AgriSaathi AI interface:
 ```powershell
 streamlit run app.py
 ```
@@ -134,123 +128,29 @@ The app will open automatically in your browser at `http://localhost:8501`.
 
 ---
 
-## 🧪 Running Automated Tests & Code Quality Checks
+## 🧪 Automated Testing & Code Quality
 
-Execute all 61 automated Pytest unit and integration tests (tests use mocked responses and do not make live paid API calls):
+AgriSaathi AI comes with an exhaustive test suite of **101 automated Pytest tests** covering authentication, tenant isolation, crop management, farm diary, expense tracking, mandi comparisons, weather advisories, admin RBAC, and data exports:
+
 ```powershell
-python -m pytest -v
+# Run the complete test suite
+.\venv\Scripts\pytest.exe -v
+
+# Run code quality and linting checks with Ruff
+.\venv\Scripts\ruff.exe check .
 ```
 
-Run code quality and linting checks with Ruff:
-```powershell
-python -m ruff check .
-```
-
----
-
-## 🏛️ Project Architecture
-
-```
-AI-Farming-Assistant/
-├── app.py                      # Streamlit application entrypoint & routing
-├── config.py                   # Pydantic Settings & environment config (Gemini & Ollama)
-├── requirements.txt            # Python dependencies (includes google-genai)
-├── pyproject.toml              # Ruff and packaging configuration
-├── alembic.ini                 # Database migration configuration
-├── README.md                   # Beginner-friendly documentation
-├── .env.example                # Example environment template (no real keys)
-│
-├── core/                       # Core system utilities
-│   ├── auth.py                 # Farmer session identity & ownership guardrails
-│   ├── database.py             # SQLAlchemy 2.x engine & session management
-│   ├── exceptions.py           # Application exception hierarchy (includes ConfigurationError)
-│   └── security.py             # Argon2id password hashing & tokens
-│
-├── models/                     # SQLAlchemy database models
-│   ├── user.py                 # Farmer account & profile
-│   ├── crop.py                 # Crops & growth stages
-│   ├── activity.py             # Farm diary operations
-│   ├── expense.py              # Categorized farm expenses
-│   ├── harvest.py              # Harvest yields & sales revenue
-│   ├── conversation.py         # AI conversations & messages
-│   ├── knowledge.py            # Verified crop knowledge & RAG docs
-│   └── health_observation.py   # Crop symptom checks & photo storage
-│
-├── schemas/                    # Pydantic validation schemas
-│   ├── user.py
-│   ├── crop.py
-│   ├── activity.py
-│   ├── expense.py
-│   ├── harvest.py
-│   └── chat.py
-│
-├── services/                   # Business logic layer
-│   ├── user_service.py         # Registration, login, profile, password change
-│   ├── crop_service.py         # Crop CRUD with multi-tenant isolation
-│   ├── activity_service.py     # Farm activities logging
-│   ├── expense_service.py      # Expense tracking & summary calculations
-│   ├── harvest_service.py      # Harvest yields & net profit calculation
-│   ├── gemini_service.py       # Google Gen AI SDK integration (streaming & non-streaming)
-│   ├── ollama_service.py       # Ollama HTTP API client (optional offline fallback)
-│   ├── chat_service.py         # Multi-provider routing, RAG context & bounded history
-│   ├── knowledge_service.py    # TF-IDF RAG retrieval & crop library
-│   ├── weather_service.py      # Open-Meteo live forecasts & advisories
-│   ├── mandi_service.py        # Agmarknet market prices
-│   ├── schemes_service.py      # Government schemes & portal directory
-│   └── image_service.py        # Crop photo upload & symptom questionnaire
-│
-├── ui/                         # Streamlit UI presentation layer
-│   ├── state.py                # Session state management
-│   ├── auth_pages.py           # Login & registration tabs
-│   ├── dashboard.py            # Overview metrics, quick actions & shortcuts
-│   ├── crops_page.py           # Crop management (active & harvested)
-│   ├── crop_detail.py          # Crop timeline, activities, expenses & harvest
-│   ├── chat_page.py            # Interactive multilingual AI chatbot with live streaming
-│   ├── diary_page.py           # Farm activity diary
-│   ├── expenses_page.py        # Farm expense logger & category breakdown
-│   ├── harvest_page.py         # Harvest yields, selling rates & net profit
-│   ├── weather_page.py         # Weather cards & agricultural advisory
-│   ├── market_page.py          # APMC mandi rates search
-│   ├── schemes_page.py         # Welfare schemes explorer
-│   ├── image_page.py           # Crop disease symptom diagnosis
-│   └── profile_page.py         # Profile update, security & account deletion
-│
-├── utils/                      # Helper utilities
-│   ├── formatting.py           # Indian Rupee (INR) and date formatting
-│   ├── language.py             # Multilingual dictionary (mr, hi, en)
-│   ├── logging_config.py       # Structured logging with Windows UTF-8 safety
-│   ├── prompts.py              # Context-aware agricultural system prompts
-│   └── validation.py           # File extension, size & header security checks
-│
-├── scripts/                    # Management scripts
-│   ├── init_db.py              # Initialize SQLite tables
-│   └── seed_knowledge.py      # Seed verified ICAR crop library & RAG passages
-│
-├── migrations/                 # Alembic database migration versions
-│   ├── env.py
-│   └── versions/
-│
-└── tests/                      # Automated Pytest suite (61 tests)
-    ├── conftest.py
-    ├── test_auth.py
-    ├── test_authorization.py
-    ├── test_crops.py
-    ├── test_activities.py
-    ├── test_expenses.py
-    ├── test_harvest.py
-    ├── test_gemini.py          # Google Gemini SDK unit tests (mocked)
-    ├── test_chat.py            # Chat routing, streaming, and fallback tests
-    ├── test_knowledge.py
-    ├── test_safety.py
-    ├── test_services.py
-    └── test_uploads.py
-```
+All 101 tests pass cleanly without network calls, executing in $<30\text{ seconds}$.
 
 ---
 
 ## 🔒 Security & Privacy Notice
 
-- **API Keys & Secrets**: The `GEMINI_API_KEY` is loaded securely via Pydantic settings and environment variables. The `.env` file is excluded from version control via `.gitignore`. Real credentials are never hardcoded or printed to stdout.
-- **No Plaintext Passwords**: All farmer passwords are protected using the memory-hard **Argon2id** algorithm.
-- **Tenant Isolation**: Every database query verifies that the requesting farmer's ID matches the resource owner. Attempting to query, update, or delete another farmer's data immediately triggers `AuthorizationError`.
-- **Upload Hardening**: File uploads are restricted to `.jpg`, `.jpeg`, and `.png` under 5MB. Byte headers are verified using Pillow to reject renamed malicious binaries, and filenames are sanitized against path traversal attacks.
+- **No Plaintext Passwords**: All farmer and administrator passwords are encrypted using **Argon2id**.
+- **Multi-Tenant Data Isolation**: Database queries enforce ownership checks at the service layer, preventing cross-farmer access.
+- **Zero-Secret Export Guarantee**: All exported CSV, Excel, and JSON files strip passwords, hashes, tokens, and API keys.
+- **Upload Hardening**: File uploads are restricted to `.jpg`, `.jpeg`, and `.png` under 5MB with Pillow magic-byte header validation.
+
+---
+
+*Authored by Vishal Sonwane — Platform Architect & Creator of AgriSaathi AI.*
