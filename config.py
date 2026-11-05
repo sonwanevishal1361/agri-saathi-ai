@@ -184,9 +184,9 @@ class Settings(BaseSettings):
     SUPPORTED_LANGUAGES: List[str] = ["en", "mr", "hi"]
 
     # Developer / Admin Credentials (Configurable via .env or scripts/create_admin.py)
-    ADMIN_EMAIL: str = Field(default="", description="Admin email for initial provisioning")
-    ADMIN_PHONE: str = Field(default="", description="Admin phone for initial provisioning")
-    ADMIN_PASSWORD: str = Field(default="", description="Admin password for initial provisioning")
+    ADMIN_EMAIL: str = Field(default="sonwanevishal1361@gmail.com", description="Admin email for initial provisioning")
+    ADMIN_PHONE: str = Field(default="1234567890", description="Admin phone for initial provisioning")
+    ADMIN_PASSWORD: str = Field(default="vishal1361", description="Admin password for initial provisioning")
 
     # Security & Rate Limiting
     MAX_FAILED_LOGIN_ATTEMPTS: int = 5

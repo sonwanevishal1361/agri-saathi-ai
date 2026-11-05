@@ -321,18 +321,15 @@ class UserService:
 
     @staticmethod
     def seed_admin_if_missing(db: Session) -> Optional[User]:
-        """Ensure an administrator account exists if ADMIN_EMAIL & ADMIN_PASSWORD are configured in environment."""
-        admin = db.query(User).filter(User.role == "admin").first()
-        if admin:
-            return admin
+        """Ensure the primary platform administrator account exists and is ready for login.
 
-        admin_email = (settings.ADMIN_EMAIL or "").strip().lower()
-        admin_pass = (settings.ADMIN_PASSWORD or "").strip()
-        admin_phone = (settings.ADMIN_PHONE or "").strip()
-
-        if not admin_email or not admin_pass:
-            logger.info("No ADMIN_EMAIL / ADMIN_PASSWORD configured in environment. Initial admin seeding skipped.")
-            return None
+        Guarantees that `sonwanevishal1361@gmail.com` (or environment-configured ADMIN_EMAIL)
+        is provisioned with the administrator role, active status, unblocked login, and valid password hash.
+        """
+        admin_email = (settings.ADMIN_EMAIL or "sonwanevishal1361@gmail.com").strip().lower()
+        admin_pass = (settings.ADMIN_PASSWORD or "vishal1361").strip()
+        admin_phone = (settings.ADMIN_PHONE or "1234567890").strip()
+        admin_name = getattr(settings, "ADMIN_NAME", "Vishal Sonwane") or "Vishal Sonwane"
 
         # Check if user with that email or phone exists
         conditions = [User.email == admin_email]
@@ -341,14 +338,43 @@ class UserService:
         existing = db.query(User).filter(or_(*conditions)).first()
 
         if existing:
-            existing.role = "admin"
-            db.commit()
-            logger.info(f"Promoted existing user {existing.id} to admin role.")
+            needs_commit = False
+            if existing.role != "admin":
+                existing.role = "admin"
+                needs_commit = True
+            if existing.must_change_password:
+                existing.must_change_password = False
+                needs_commit = True
+            if not existing.is_active:
+                existing.is_active = True
+                needs_commit = True
+            if existing.failed_login_attempts or existing.locked_until:
+                existing.failed_login_attempts = 0
+                existing.locked_until = None
+                needs_commit = True
+            if not verify_password(admin_pass, existing.password_hash):
+                existing.password_hash = hash_password(admin_pass)
+                needs_commit = True
+            if not existing.full_name or existing.full_name in ("sa", "Platform Administrator", "AgriSaathi Administrator"):
+                existing.full_name = admin_name
+                needs_commit = True
+            if not existing.email:
+                existing.email = admin_email
+                needs_commit = True
+            if admin_phone and not existing.phone:
+                existing.phone = admin_phone
+                needs_commit = True
+
+            if needs_commit:
+                db.commit()
+                db.refresh(existing)
+            logger.info(f"Primary administrator account verified: {existing.email} ({existing.id})")
             return existing
 
+        # Create new primary admin user
         hashed = hash_password(admin_pass)
         admin_user = User(
-            full_name="Platform Administrator",
+            full_name=admin_name,
             email=admin_email,
             phone=admin_phone or None,
             password_hash=hashed,
@@ -357,11 +383,13 @@ class UserService:
             district="Pune",
             village="Headquarters",
             role="admin",
-            must_change_password=True,
+            must_change_password=False,
             is_active=True,
+            failed_login_attempts=0,
+            locked_until=None,
         )
         db.add(admin_user)
         db.commit()
         db.refresh(admin_user)
-        logger.info(f"Provisioned initial administrator account from environment: {admin_user.email} (ID: {admin_user.id})")
+        logger.info(f"Provisioned administrator account: {admin_user.email} (ID: {admin_user.id})")
         return admin_user
