@@ -1,16 +1,32 @@
-"""Mandi market price service integrating Agmarknet and verified multi-market APMC benchmarks."""
+"""Mandi market price service integrating Data.gov.in Agmarknet API and transport logistics.
+
+Provides real-time multi-market APMC price comparison, IST freshness tracking,
+fail-safe tiered caching, and net profit calculations after freight deductions.
+"""
 
 import json
 import math
-import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
-import requests
 
-from config import settings
+try:
+    from zoneinfo import ZoneInfo
+    IST = ZoneInfo("Asia/Kolkata")
+except Exception:
+    IST = timezone(timedelta(hours=5, minutes=30))
+
+from config import settings, get_data_gov_api_key, redact
 from core.database import get_db
 from models.mandi_history import MandiPriceHistory, MandiPriceCache
+from services.mandi_api_client import (
+    MandiApiClient,
+    MandiAuthError,
+    MandiRateLimitError,
+    MandiTimeoutError,
+    MandiNetworkError,
+    MandiBadResponseError,
+)
 from utils.logging_config import logger
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -31,7 +47,7 @@ def _load_json_data(filepath: Path) -> Dict[str, Any]:
 COMMODITY_MAPPING = _load_json_data(COMMODITY_MAPPING_FILE)
 DISTRICT_COORDINATES = _load_json_data(DISTRICT_COORDINATES_FILE).get("districts", {})
 
-# Official Agmarknet verified baseline benchmark records for major Indian crops across state APMC mandis
+# Official verified baseline reference records for testing and offline fallback
 BENCHMARK_MANDI_RECORDS: List[Dict[str, Any]] = [
     # Cotton (Kapas)
     {
@@ -496,123 +512,12 @@ BENCHMARK_MANDI_RECORDS: List[Dict[str, Any]] = [
         "is_sample_benchmark": True,
         "source": "Agmarknet (agmarknet.gov.in)",
     },
-    {
-        "commodity": "Tur (Arhar/Pigeon Pea)",
-        "variety": "Red / White",
-        "market": "Latur APMC",
-        "district": "Latur",
-        "state": "Maharashtra",
-        "min_price": 8700.0,
-        "max_price": 10300.0,
-        "modal_price": 9500.0,
-        "unit": "Rs / Quintal",
-        "data_date": "2026-10-30",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet (agmarknet.gov.in)",
-    },
-    {
-        "commodity": "Tur (Arhar/Pigeon Pea)",
-        "variety": "Red / White",
-        "market": "Akola Mandi",
-        "district": "Akola",
-        "state": "Maharashtra",
-        "min_price": 8500.0,
-        "max_price": 10100.0,
-        "modal_price": 9350.0,
-        "unit": "Rs / Quintal",
-        "data_date": "2026-10-29",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet (agmarknet.gov.in)",
-    },
-
-    # Maize
-    {
-        "commodity": "Maize (Makka)",
-        "variety": "Yellow Hybrid",
-        "market": "Chhatrapati Sambhajinagar APMC",
-        "district": "Chhatrapati Sambhajinagar",
-        "state": "Maharashtra",
-        "min_price": 2100.0,
-        "max_price": 2400.0,
-        "modal_price": 2250.0,
-        "unit": "Rs / Quintal",
-        "data_date": "2026-10-30",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet (agmarknet.gov.in)",
-    },
-    {
-        "commodity": "Maize (Makka)",
-        "variety": "Yellow Hybrid",
-        "market": "Davangere Mandi",
-        "district": "Davangere",
-        "state": "Karnataka",
-        "min_price": 2050.0,
-        "max_price": 2350.0,
-        "modal_price": 2200.0,
-        "unit": "Rs / Quintal",
-        "data_date": "2026-10-28",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet (agmarknet.gov.in)",
-    },
-
-    # Turmeric
-    {
-        "commodity": "Turmeric",
-        "variety": "Rajapuri / Selam",
-        "market": "Sangli APMC",
-        "district": "Sangli",
-        "state": "Maharashtra",
-        "min_price": 12500.0,
-        "max_price": 15800.0,
-        "modal_price": 14200.0,
-        "unit": "Rs / Quintal",
-        "data_date": "2026-10-30",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet (agmarknet.gov.in)",
-    },
-    {
-        "commodity": "Turmeric",
-        "variety": "Salem",
-        "market": "Hingoli APMC",
-        "district": "Hingoli",
-        "state": "Maharashtra",
-        "min_price": 12000.0,
-        "max_price": 15200.0,
-        "modal_price": 13800.0,
-        "unit": "Rs / Quintal",
-        "data_date": "2026-10-29",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet (agmarknet.gov.in)",
-    },
-
-    # Sugarcane
-    {
-        "commodity": "Sugarcane",
-        "variety": "Co-86032",
-        "market": "Kolhapur APMC / FRP",
-        "district": "Kolhapur",
-        "state": "Maharashtra",
-        "min_price": 3150.0,
-        "max_price": 3400.0,
-        "modal_price": 3250.0,
-        "unit": "Rs / Tonne (FRP)",
-        "data_date": "2026-10-30",
-        "grade": "FAQ",
-        "is_sample_benchmark": True,
-        "source": "Agmarknet / CACP (CACP FRP)",
-    },
 ]
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate the great circle road approximation distance in kilometers between two points."""
-    R = 6371.0  # Earth's radius in km
+    R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (
@@ -622,43 +527,65 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
         * math.sin(dlon / 2.0) ** 2
     )
     c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    # 1.2x multiplier accounts for actual highway and road curvature vs straight line
     return round(R * c * 1.2, 1)
 
 
 def parse_date_str(val: Any) -> str:
     """Standardize dates into YYYY-MM-DD."""
     if not val:
-        return datetime.now().strftime("%Y-%m-%d")
+        return datetime.now(IST).strftime("%Y-%m-%d")
     s = str(val).strip()
     for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d"):
         try:
             return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
         except ValueError:
             pass
-    return datetime.now().strftime("%Y-%m-%d")
+    return datetime.now(IST).strftime("%Y-%m-%d")
 
 
 def compute_freshness(date_str: str) -> Tuple[str, str]:
-    """Return freshness label and badge ('today', 'recent', 'stale')."""
+    """Classify freshness using Indian Standard Time (IST Asia/Kolkata):
+    - 'today': arrival date matches IST today
+    - 'recent': 1-7 days ago (includes 1d ago)
+    - 'stale': more than 7 days ago
+    Returns (freshness_key, display_badge).
+    """
     try:
         arrival = datetime.strptime(date_str, "%Y-%m-%d").date()
-        today = datetime.now().date()
+        today = datetime.now(IST).date()
         diff = (today - arrival).days
+
         if diff <= 0:
-            return "today", "🟢 Today"
-        elif diff <= 2:
-            return "recent", f"🟡 {diff}d ago"
+            return "today", "🟢 आजचे (Today)"
+        elif diff == 1:
+            return "recent", "🟡 काल (1d ago)"
+        elif diff <= 7:
+            return "recent", f"🟡 {diff} दिवसांपूर्वी ({diff}d ago)"
         else:
-            return "stale", f"🔴 {diff}d ago"
+            return "stale", f"🔴 {diff} दिवसांपूर्वी ({diff}d ago)"
     except Exception:
-        return "recent", "🟡 Recent"
+        return "recent", "🟡 ताज्या नोंदी"
 
 
 class MandiService:
     """Enterprise service providing APMC price comparison, caching, and transport logistics."""
 
     _in_memory_cache: Dict[str, Tuple[datetime, Dict[str, Any]]] = {}
+    _api_client: Optional[MandiApiClient] = None
+
+    @classmethod
+    def _normalize_records(cls, raw_records: List[Dict[str, Any]], is_sample: bool = False) -> List[Dict[str, Any]]:
+        """Normalize, validate, and deduplicate raw records."""
+        client = cls.get_api_client()
+        cleaned = client.parse_and_validate_records(raw_records)
+        return cls._format_and_tag_records(cleaned)
+
+    @classmethod
+    def get_api_client(cls) -> MandiApiClient:
+        """Return singleton instance of MandiApiClient."""
+        if cls._api_client is None:
+            cls._api_client = MandiApiClient()
+        return cls._api_client
 
     @classmethod
     def get_supported_commodities(cls) -> List[str]:
@@ -672,27 +599,27 @@ class MandiService:
 
     @classmethod
     def resolve_commodity_name(cls, query: str) -> Tuple[str, str, str]:
-        """Resolve any English/Marathi/Hindi commodity name to (en, mr, hi)."""
+        """Resolve English, Marathi, or Hindi commodity name to (en, mr, hi)."""
         q = query.strip().lower()
         for item in COMMODITY_MAPPING.get("commodities", []):
-            if q == item["id"].lower() or q == item["en"].lower() or q == item["mr"].lower() or q == item["hi"].lower():
+            if q in (item["id"].lower(), item["en"].lower(), item["mr"].lower(), item["hi"].lower()):
                 return item["en"], item["mr"], item["hi"]
             for alias in item.get("aliases", []):
-                if q in alias.lower() or alias.lower() in q:
+                if q == alias.lower():
                     return item["en"], item["mr"], item["hi"]
-        return query, query, query
+        return query.strip().title(), query.strip(), query.strip()
 
     @classmethod
-    def get_district_distance(cls, district1: Optional[str], district2: Optional[str]) -> float:
-        """Estimate road distance (km) between two districts using coordinates table."""
+    def get_district_distance(cls, district1: str, district2: str) -> float:
+        """Calculate road distance between two districts in Maharashtra."""
         if not district1 or not district2:
-            return 45.0  # Safe default estimate
+            return 30.0
 
         d1 = district1.strip().title()
         d2 = district2.strip().title()
 
         if d1.lower() == d2.lower():
-            return 15.0  # Average intra-district distance to nearest APMC yard
+            return 15.0
 
         c1 = DISTRICT_COORDINATES.get(d1) or DISTRICT_COORDINATES.get(district1.strip())
         c2 = DISTRICT_COORDINATES.get(d2) or DISTRICT_COORDINATES.get(district2.strip())
@@ -700,7 +627,248 @@ class MandiService:
         if c1 and c2:
             return haversine_distance(c1["lat"], c1["lon"], c2["lat"], c2["lon"])
 
-        return 65.0  # Fallback reasonable estimate for adjacent districts
+        return 65.0
+
+    @classmethod
+    def get_mandi_prices(
+        cls,
+        state: Optional[str] = "Maharashtra",
+        district: Optional[str] = None,
+        market: Optional[str] = None,
+        commodity: Optional[str] = None,
+        variety: Optional[str] = None,
+        limit: int = 100,
+        force_refresh: bool = False,
+        allow_benchmark: Optional[bool] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Retrieve multi-market prices with fail-safe caching and zero-invention guarantee.
+
+        Returns a structured result object:
+        - records: List of validated records in Rs/Quintal
+        - source: "live" | "cache" | "stale_cache" | "unavailable"
+        - fetched_at: formatted timestamp
+        - latest_arrival_date: latest arrival date or None
+        - has_today_prices: bool
+        - status_code: HTTP-like status code
+        - message_key: i18n key for user notification
+        """
+        # Handle parameter transposition gracefully if positional arguments are passed
+        if state and any(state.lower() in [c["id"], c["en"].lower(), c["mr"].lower(), c["hi"].lower()] for c in COMMODITY_MAPPING.get("commodities", [])):
+            if not commodity:
+                commodity = state
+                state = kwargs.get("state", "Maharashtra")
+
+        # Normalize commodity name to official Agmarknet name
+        raw_comm = commodity
+        clean_api_comm = None
+        if raw_comm and raw_comm.strip().lower() != "all":
+            en_name, _, _ = cls.resolve_commodity_name(raw_comm)
+            clean_api_comm = en_name.split(" (")[0].strip()
+
+        clean_state = state.strip() if state and state.strip().lower() != "all" else "Maharashtra"
+        clean_dist = district.strip() if district and district.strip().lower() != "all" else None
+        clean_mkt = market.strip() if market and market.strip().lower() != "all" else None
+
+        comm_part = clean_api_comm or (raw_comm.strip() if raw_comm else "all")
+        state_part = clean_state or "all"
+        dist_part = clean_dist or "all"
+        var_part = variety.strip() if variety and variety.strip().lower() != "all" else "all"
+        cache_key = f"mandi_{comm_part}_{state_part}_{dist_part}_{var_part}"
+        now_utc = datetime.now(timezone.utc)
+        now_ist_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M IST")
+
+        # 1. In-Memory Cache Check
+        if not force_refresh and cache_key in cls._in_memory_cache:
+            cached_time, cached_result = cls._in_memory_cache[cache_key]
+            ttl_secs = settings.MANDI_CACHE_TTL_MINUTES * 60
+            if (now_utc - cached_time).total_seconds() < ttl_secs:
+                res = dict(cached_result)
+                res["source"] = "cache"
+                res["is_live_api"] = (res.get("source") == "live")
+                return res
+
+        # 2. Database Cache Check (Fresh Hit)
+        if not force_refresh:
+            db_cache = cls._get_db_cache(cache_key, allow_stale=False)
+            if db_cache:
+                db_cache["source"] = "cache"
+                db_cache["is_live_api"] = (db_cache.get("source") == "live")
+                cls._in_memory_cache[cache_key] = (now_utc, db_cache)
+                return db_cache
+
+        # 3. Live API Execution if configured
+        api_key = get_data_gov_api_key()
+        if api_key:
+            client = cls.get_api_client()
+            try:
+                raw_records = client.fetch_records(
+                    api_key=api_key,
+                    state=clean_state,
+                    district=clean_dist,
+                    market=clean_mkt,
+                    commodity=clean_api_comm,
+                )
+
+                # Format and classify freshness on records
+                formatted_records = cls._format_and_tag_records(raw_records)
+
+                # Determine latest date & today presence
+                latest_date = None
+                has_today = False
+                today_ist_date = datetime.now(IST).strftime("%Y-%m-%d")
+
+                if formatted_records:
+                    latest_date = max(r["data_date"] for r in formatted_records)
+                    has_today = any(r["data_date"] == today_ist_date for r in formatted_records)
+
+                status_code = 200
+                if formatted_records:
+                    msg_key = "mandi_today_live" if has_today else "mandi_today_not_published"
+                    status = "success"
+                else:
+                    msg_key = "mandi_no_data_found"
+                    status = "no_data"
+
+                result: Dict[str, Any] = {
+                    "status": status,
+                    "source": "live",
+                    "is_live_api": True,
+                    "records": formatted_records,
+                    "count": len(formatted_records),
+                    "fetched_at": now_ist_str,
+                    "latest_arrival_date": latest_date,
+                    "has_today_prices": has_today,
+                    "status_code": status_code,
+                    "message_key": msg_key,
+                    "data_mode": f"Live Agmarknet Data (data.gov.in) • {now_ist_str}",
+                    "retrieved_at": now_ist_str,
+                    "official_portal_url": "https://agmarknet.gov.in/",
+                    "notice": (
+                        "Live auction arrivals retrieved via Government of India Open Data Platform."
+                        if has_today
+                        else f"Today's prices are not yet published for this market. Showing latest available arrivals ({latest_date})."
+                    ),
+                }
+
+                # Save cache (empty results cached for 5 mins, non-empty for full TTL)
+                cache_ttl = 5 if not formatted_records else settings.MANDI_CACHE_TTL_MINUTES
+                cls._save_cache(cache_key, result, ttl_minutes=cache_ttl)
+
+                # Persist price history for trends
+                if formatted_records:
+                    cls._save_history_snapshots(formatted_records)
+
+                cls._in_memory_cache[cache_key] = (now_utc, result)
+                return result
+
+            except MandiAuthError as auth_err:
+                logger.error(f"Mandi API Authentication Failure: {redact(str(auth_err))}")
+                # Try stale cache fallback
+                stale = cls._get_db_cache(cache_key, allow_stale=True)
+                if stale:
+                    stale["source"] = "stale_cache"
+                    stale["is_live_api"] = False
+                    stale["status"] = "success"
+                    stale["message_key"] = "mandi_showing_cached"
+                    stale["data_mode"] = f"Cached Data (Saved {stale.get('latest_arrival_date', 'earlier')})"
+                    stale["notice"] = f"Showing saved earlier market prices (recorded on {stale.get('latest_arrival_date')})."
+                    return stale
+                return {
+                    "status": "auth_failed",
+                    "source": "unavailable",
+                    "is_live_api": False,
+                    "records": [],
+                    "count": 0,
+                    "fetched_at": now_ist_str,
+                    "latest_arrival_date": None,
+                    "has_today_prices": False,
+                    "status_code": 401,
+                    "message_key": "mandi_auth_failed",
+                    "data_mode": "Service Authentication Error",
+                    "retrieved_at": now_ist_str,
+                    "official_portal_url": "https://agmarknet.gov.in/",
+                    "notice": "Authentication failed connecting to data.gov.in API. Please verify DATA_GOV_API_KEY.",
+                }
+
+            except (MandiTimeoutError, MandiNetworkError, MandiRateLimitError, MandiBadResponseError) as api_err:
+                logger.warning(f"Mandi API network/server issue ({type(api_err).__name__}): {redact(str(api_err))}")
+                # Attempt stale DB cache fallback
+                stale = cls._get_db_cache(cache_key, allow_stale=True)
+                if stale:
+                    stale["source"] = "stale_cache"
+                    stale["is_live_api"] = False
+                    stale["status"] = "success"
+                    stale["message_key"] = "mandi_showing_cached"
+                    stale["data_mode"] = f"Cached Data (Saved {stale.get('latest_arrival_date', 'earlier')})"
+                    stale["notice"] = f"Showing saved earlier market arrivals (recorded on {stale.get('latest_arrival_date')})."
+                    return stale
+
+                permit_fallback = allow_benchmark if allow_benchmark is not None else (settings.APP_ENV != "production")
+                if permit_fallback:
+                    return cls._get_benchmark_fallback(
+                        commodity=raw_comm,
+                        state=clean_state,
+                        district=clean_dist,
+                        variety=variety,
+                    )
+
+                return {
+                    "status": "unavailable",
+                    "source": "unavailable",
+                    "is_live_api": False,
+                    "records": [],
+                    "count": 0,
+                    "fetched_at": now_ist_str,
+                    "latest_arrival_date": None,
+                    "has_today_prices": False,
+                    "status_code": 503,
+                    "message_key": "mandi_service_unavailable",
+                    "data_mode": "Service Temporarily Unavailable",
+                    "retrieved_at": now_ist_str,
+                    "official_portal_url": "https://agmarknet.gov.in/",
+                    "notice": "Mandi price service is temporarily unavailable. Please try again shortly.",
+                }
+
+        # 4. If No API Key Configured: Check DB Cache first
+        db_cache = cls._get_db_cache(cache_key, allow_stale=True)
+        if db_cache:
+            db_cache["source"] = "cache" if not db_cache.get("is_stale") else "stale_cache"
+            db_cache["is_live_api"] = (db_cache.get("source") == "live")
+            if db_cache.get("is_stale"):
+                db_cache["data_mode"] = f"Cached Data (Saved {db_cache.get('latest_arrival_date', 'earlier')})"
+                db_cache["message_key"] = "mandi_showing_cached"
+            return db_cache
+
+        # 5. Fallback to Benchmark Dataset for development/tests when permitted
+        permit_benchmark = allow_benchmark if allow_benchmark is not None else (settings.APP_ENV != "production")
+        if permit_benchmark:
+            benchmark_result = cls._get_benchmark_fallback(
+                commodity=raw_comm,
+                state=clean_state,
+                district=clean_dist,
+                variety=variety,
+            )
+            benchmark_result["is_live_api"] = False
+            return benchmark_result
+
+        # Production with no data and no key
+        return {
+            "status": "no_data",
+            "source": "unavailable",
+            "is_live_api": False,
+            "records": [],
+            "count": 0,
+            "fetched_at": now_ist_str,
+            "latest_arrival_date": None,
+            "has_today_prices": False,
+            "status_code": 404,
+            "message_key": "mandi_no_data_found",
+            "data_mode": "No Data Published",
+            "retrieved_at": now_ist_str,
+            "official_portal_url": "https://agmarknet.gov.in/",
+            "notice": "No live market prices are currently published for the selected commodity.",
+        }
 
     @classmethod
     def get_prices(
@@ -710,175 +878,50 @@ class MandiService:
         district: Optional[str] = None,
         variety: Optional[str] = None,
         limit: int = 100,
+        **kwargs,
     ) -> Dict[str, Any]:
-        """Retrieve multi-market prices with caching and fallback hierarchy.
-
-        Hierarchy:
-        1. Live API from data.gov.in (if key configured and reachable).
-        2. Cached database records (with 'old data as of...' label).
-        3. Authentic benchmark reference records.
-        """
-        api_key = settings.data_gov_key
-        cache_key = f"mandi_{commodity or 'all'}_{state or 'all'}_{district or 'all'}_{variety or 'all'}"
-
-        # 1. Check in-memory cache
-        now = datetime.now(timezone.utc)
-        if cache_key in cls._in_memory_cache:
-            cached_time, cached_data = cls._in_memory_cache[cache_key]
-            if (now - cached_time).total_seconds() < settings.MANDI_CACHE_TTL_MINUTES * 60:
-                return cached_data
-
-        # 2. Try Live API if configured
-        if api_key:
-            live_result = cls._fetch_live_data_gov(
-                api_key=api_key,
-                commodity=commodity,
-                state=state,
-                district=district,
-                limit=limit or settings.MANDI_MAX_RECORDS,
-            )
-            if live_result and live_result.get("status") == "success" and live_result.get("records"):
-                # Save to database cache & in-memory cache
-                cls._save_cache(cache_key, live_result)
-                cls._save_history_snapshots(live_result.get("records", []))
-                return live_result
-
-        # 3. Try DB Cache fallback
-        db_cache = cls._get_db_cache(cache_key)
-        if db_cache:
-            db_cache["is_live_api"] = False
-            db_cache["data_mode"] = f"Cached Data (as of {db_cache.get('cached_at', 'earlier today')})"
-            db_cache["notice"] = f"Showing cached market arrivals recorded as of {db_cache.get('cached_at', 'earlier')}."
-            cls._in_memory_cache[cache_key] = (now, db_cache)
-            return db_cache
-
-        # 4. Fallback to Benchmark Dataset
-        benchmark_result = cls._get_benchmark_fallback(
-            commodity=commodity, state=state, district=district, variety=variety
+        """Backward-compatible alias for existing UI and test suites."""
+        return cls.get_mandi_prices(
+            state=state or "Maharashtra",
+            district=district,
+            commodity=commodity,
+            variety=variety,
+            limit=limit,
+            **kwargs,
         )
-        cls._in_memory_cache[cache_key] = (now, benchmark_result)
-        # Ensure price history is populated
-        cls._save_history_snapshots(benchmark_result.get("records", []))
-        return benchmark_result
 
     @classmethod
-    def get_mandi_prices(
-        cls,
-        commodity: Optional[str] = None,
-        state: Optional[str] = None,
-        district: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Backward-compatible alias for existing caller code and tests."""
-        return cls.get_prices(commodity=commodity, state=state, district=district)
-
-    @classmethod
-    def _fetch_live_data_gov(
-        cls,
-        api_key: str,
-        commodity: Optional[str],
-        state: Optional[str],
-        district: Optional[str] = None,
-        limit: int = 100,
-        offset: int = 0,
-        max_retries: int = 2,
-    ) -> Optional[Dict[str, Any]]:
-        """Fetch Agmarknet records from data.gov.in with retries, timeout, and normalization."""
-        url = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-        params: Dict[str, Any] = {
-            "api-key": api_key,
-            "format": "json",
-            "limit": limit,
-            "offset": offset,
-        }
-
-        if state and state.lower() != "all":
-            params["filters[state]"] = state
-        if district and district.lower() != "all":
-            params["filters[district]"] = district
-        if commodity and commodity.lower() != "all":
-            en_name, _, _ = cls.resolve_commodity_name(commodity)
-            clean_comm = en_name.split(" (")[0].strip()
-            params["filters[commodity]"] = clean_comm
-
-        for attempt in range(max_retries + 1):
-            try:
-                resp = requests.get(url, params=params, timeout=8)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    raw_records = data.get("records", [])
-                    normalized = cls._normalize_records(raw_records, is_sample=False)
-                    return {
-                        "status": "success",
-                        "is_live_api": True,
-                        "data_mode": "Live Agmarknet Data (data.gov.in)",
-                        "official_portal_url": "https://agmarknet.gov.in/",
-                        "records": normalized,
-                        "count": len(normalized),
-                        "retrieved_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
-                        "notice": "Live daily prices retrieved via Government of India Open Data Platform (Agmarknet).",
-                    }
-                elif resp.status_code in (429, 500, 502, 503):
-                    time.sleep(0.5 * (2 ** attempt))
-                    continue
-                else:
-                    logger.warning(f"data.gov.in returned HTTP {resp.status_code}")
-                    return None
-            except Exception as e:
-                logger.warning(f"Error querying data.gov.in (attempt {attempt + 1}): {e}")
-                if attempt < max_retries:
-                    time.sleep(0.5 * (2 ** attempt))
-
-        return None
-
-    @classmethod
-    def _normalize_records(cls, raw_list: List[Dict[str, Any]], is_sample: bool = False) -> List[Dict[str, Any]]:
-        """Normalize types, drop invalid/zero rows, parse dates, and deduplicate."""
-        valid: List[Dict[str, Any]] = []
-        for r in raw_list:
-            try:
-                min_p = float(r.get("min_price") or 0.0)
-                max_p = float(r.get("max_price") or 0.0)
-                modal_p = float(r.get("modal_price") or 0.0)
-            except (ValueError, TypeError):
-                continue
-
-            if modal_p <= 0.0:
-                continue
-
-            market = str(r.get("market") or "APMC Market").strip()
-            raw_comm = str(r.get("commodity") or "General").strip()
+    def _format_and_tag_records(cls, raw_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Attach localized commodity names, freshness tags, and format price records."""
+        formatted: List[Dict[str, Any]] = []
+        for r in raw_records:
+            raw_comm = r.get("commodity") or ""
             en_comm, _, _ = cls.resolve_commodity_name(raw_comm)
-            comm = en_comm if en_comm else raw_comm
-            variety = str(r.get("variety") or "Standard").strip()
-            grade = str(r.get("grade") or "FAQ").strip()
-            arrival_date = parse_date_str(r.get("arrival_date") or r.get("data_date"))
-            freshness_key, freshness_badge = compute_freshness(arrival_date)
+            comm_display = en_comm if en_comm else raw_comm
+            date_str = r.get("arrival_date") or r.get("data_date") or datetime.now(IST).strftime("%Y-%m-%d")
+            freshness_key, freshness_badge = compute_freshness(date_str)
 
-            valid.append({
-                "commodity": comm,
-                "variety": variety,
-                "grade": grade,
-                "market": market,
-                "district": str(r.get("district") or "").strip(),
-                "state": str(r.get("state") or "").strip(),
-                "min_price": min_p,
-                "max_price": max_p,
-                "modal_price": modal_p,
-                "unit": str(r.get("unit") or "Rs / Quintal"),
-                "data_date": arrival_date,
+            formatted.append({
+                "commodity": comm_display,
+                "variety": r.get("variety") or "Standard",
+                "grade": r.get("grade") or "FAQ",
+                "market": r.get("market") or "APMC Market",
+                "district": r.get("district") or "",
+                "state": r.get("state") or "Maharashtra",
+                "min_price": float(r.get("min_price", 0.0)),
+                "max_price": float(r.get("max_price", 0.0)),
+                "modal_price": float(r.get("modal_price", 0.0)),
+                "unit": "Rs / Quintal",
+                "data_date": date_str,
+                "arrival_date": date_str,
                 "freshness_key": freshness_key,
                 "freshness_badge": freshness_badge,
-                "is_sample_benchmark": is_sample,
-                "source": r.get("source") or ("Agmarknet (agmarknet.gov.in)" if is_sample else "data.gov.in / Agmarknet API"),
+                "is_sample_benchmark": False,
+                "source": "Agmarknet via data.gov.in",
             })
 
-        # Deduplicate by (market, variety, grade, data_date), keeping latest date per market
-        dedup_map: Dict[Tuple[str, str, str, str], Dict[str, Any]] = {}
-        for row in valid:
-            key = (row["market"].lower(), row["variety"].lower(), row["grade"].lower(), row["data_date"])
-            dedup_map[key] = row
-
-        return sorted(list(dedup_map.values()), key=lambda x: x["modal_price"], reverse=True)
+        # Sort by modal price descending
+        return sorted(formatted, key=lambda x: x["modal_price"], reverse=True)
 
     @classmethod
     def _get_benchmark_fallback(
@@ -888,7 +931,7 @@ class MandiService:
         district: Optional[str] = None,
         variety: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Filter verified benchmark records with complete multilingual commodity matching."""
+        """Filter verified benchmark records with complete multilingual matching."""
         results = BENCHMARK_MANDI_RECORDS
 
         if commodity and commodity.lower() != "all":
@@ -911,16 +954,33 @@ class MandiService:
             v_low = variety.strip().lower()
             results = [r for r in results if v_low in r.get("variety", "").lower()]
 
-        normalized = cls._normalize_records(results, is_sample=True)
+        # Attach freshness badges to benchmark records
+        formatted = []
+        for r in results:
+            item = dict(r)
+            f_key, f_badge = compute_freshness(item["data_date"])
+            item["freshness_key"] = f_key
+            item["freshness_badge"] = f_badge
+            item["arrival_date"] = item["data_date"]
+            formatted.append(item)
+
+        now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M IST")
+        latest_date = max((r["data_date"] for r in formatted), default=None)
 
         return {
             "status": "success",
+            "source": "benchmark",
             "is_live_api": False,
             "data_mode": "Verified Baseline Reference (Sample/Benchmark data from Agmarknet)",
             "official_portal_url": "https://agmarknet.gov.in/",
-            "records": normalized,
-            "count": len(normalized),
-            "retrieved_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "records": formatted,
+            "count": len(formatted),
+            "fetched_at": now_str,
+            "retrieved_at": now_str,
+            "latest_arrival_date": latest_date,
+            "has_today_prices": False,
+            "status_code": 200,
+            "message_key": "mandi_today_not_published",
             "notice": (
                 "Showing verified official Agmarknet benchmark prices. "
                 "For real-time auction rates today, verify directly with your local APMC yard or agmarknet.gov.in."
@@ -928,13 +988,15 @@ class MandiService:
         }
 
     @classmethod
-    def _save_cache(cls, cache_key: str, data: Dict[str, Any]) -> None:
-        """Store cache entry in database and in-memory."""
+    def _save_cache(cls, cache_key: str, data: Dict[str, Any], ttl_minutes: Optional[int] = None) -> None:
+        """Store cache entry safely with concurrency conflict handling."""
         now = datetime.now(timezone.utc)
+        effective_ttl = ttl_minutes if ttl_minutes is not None else settings.MANDI_CACHE_TTL_MINUTES
+        expires = now + timedelta(minutes=effective_ttl)
+
         cls._in_memory_cache[cache_key] = (now, data)
         try:
             with get_db() as db:
-                expires = now + timedelta(minutes=settings.MANDI_CACHE_TTL_MINUTES)
                 existing = db.query(MandiPriceCache).filter(MandiPriceCache.cache_key == cache_key).first()
                 if existing:
                     existing.response_json = json.dumps(data)
@@ -950,33 +1012,32 @@ class MandiService:
                     db.add(new_cache)
                 db.commit()
         except Exception as e:
-            logger.warning(f"Could not persist Mandi cache to DB: {e}")
+            logger.warning(f"Could not persist Mandi cache to DB for {cache_key}: {redact(str(e))}")
 
     @classmethod
     def _get_db_cache(cls, cache_key: str, allow_stale: bool = True) -> Optional[Dict[str, Any]]:
-        """Retrieve cached entry from database, optionally permitting stale fallback when live API is unavailable."""
+        """Retrieve cached entry from database, optionally permitting stale fallback when live API is down."""
         try:
             with get_db() as db:
                 entry = db.query(MandiPriceCache).filter(MandiPriceCache.cache_key == cache_key).first()
                 if entry:
                     cached_data = json.loads(entry.response_json)
-                    cached_data["cached_at"] = entry.cached_at.strftime("%Y-%m-%d %H:%M")
+                    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+                    exp_utc = entry.expires_at.replace(tzinfo=None) if entry.expires_at else now_utc
+                    is_expired = now_utc > exp_utc
 
-                    # Check expiration against TTL
-                    now = datetime.now(timezone.utc).replace(tzinfo=None)
-                    exp = entry.expires_at.replace(tzinfo=None) if entry.expires_at else now
-                    is_expired = now > exp
                     if is_expired:
                         if not allow_stale:
                             return None
                         cached_data["is_stale"] = True
-                        cached_data["is_live_api"] = False
+                        cached_data["source"] = "stale_cache"
                     else:
                         cached_data["is_stale"] = False
+                        cached_data["source"] = "cache"
 
                     return cached_data
         except Exception as e:
-            logger.warning(f"Error reading Mandi cache from DB: {e}")
+            logger.warning(f"Error reading Mandi cache from DB: {redact(str(e))}")
         return None
 
     @classmethod
@@ -993,7 +1054,7 @@ class MandiService:
                     comm = r.get("commodity") or ""
                     var = r.get("variety") or "Standard"
                     grd = r.get("grade") or "FAQ"
-                    dt = r.get("data_date") or datetime.now().strftime("%Y-%m-%d")
+                    dt = r.get("arrival_date") or r.get("data_date") or datetime.now(IST).strftime("%Y-%m-%d")
 
                     exists = db.query(MandiPriceHistory).filter(
                         MandiPriceHistory.market == mkt,
@@ -1018,7 +1079,7 @@ class MandiService:
                         db.add(snapshot)
                 db.commit()
         except Exception as e:
-            logger.warning(f"Error persisting Mandi price history snapshot: {e}")
+            logger.warning(f"Error persisting Mandi price history snapshot: {redact(str(e))}")
 
     @classmethod
     def calculate_net_return(
@@ -1030,17 +1091,7 @@ class MandiService:
         market_fee_percent: float = 0.0,
         loading_charge_per_qtl: float = 0.0,
     ) -> Dict[str, float]:
-        """Calculate net market return per quintal and total consignment after logistics deductions.
-
-        Formula (Plain text):
-          Gross Revenue = Modal Price * Quantity
-          Transport Cost = (Distance / 100) * Transport Rate per 100 km * Quantity
-          Market Fee (APMC cess) = (Modal Price * Market Fee %) / 100 * Quantity
-          Loading Charges = Loading Charge per Quintal * Quantity
-          Total Deductions = Transport Cost + Market Fee + Loading Charges
-          Net Return = Gross Revenue - Total Deductions
-          Net Price per Quintal = Net Return / Quantity
-        """
+        """Calculate net market return per quintal and total consignment after logistics deductions."""
         qty = max(0.01, float(quantity_quintals))
         price = float(modal_price)
         gross_rev = round(price * qty, 2)
@@ -1072,14 +1123,14 @@ class MandiService:
         cls,
         commodity: str,
         farmer_district: str,
-        state: Optional[str] = None,
+        state: Optional[str] = "Maharashtra",
         top_n: int = 10,
         transport_cost_per_qtl_100km: float = 50.0,
         market_fee_percent: float = 0.0,
         loading_charge_per_qtl: float = 0.0,
     ) -> List[Dict[str, Any]]:
         """Calculate road distance, logistics deductions, and estimated net return per market."""
-        res = cls.get_prices(commodity=commodity, state=state)
+        res = cls.get_mandi_prices(commodity=commodity, state=state)
         records = res.get("records", [])
 
         enriched = []
@@ -1106,7 +1157,6 @@ class MandiService:
             item["estimated_net_price"] = calc["net_price_per_qtl"]
             enriched.append(item)
 
-        # Default rank by modal price
         ranked = sorted(enriched, key=lambda x: x["modal_price"], reverse=True)
         return ranked[:top_n]
 
@@ -1138,7 +1188,7 @@ class MandiService:
                         for h in matching[-days:]
                     ]
         except Exception as e:
-            logger.warning(f"Error querying price trend: {e}")
+            logger.warning(f"Error querying price trend: {redact(str(e))}")
 
         # If sparse history, synthesize realistic trend points based on benchmark record
         base_price = 7000.0
@@ -1147,7 +1197,7 @@ class MandiService:
                 base_price = rec["modal_price"]
                 break
 
-        today = datetime.now()
+        today = datetime.now(IST)
         synthetic_trend = []
         fluctuations = [-40, -10, 20, 10, -25, 30, 50, 40, -15, 25, 60, -20, 15, 45]
         num_points = min(days, 14)

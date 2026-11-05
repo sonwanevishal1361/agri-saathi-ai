@@ -4,13 +4,98 @@ Loads application settings with validation and environment variable overrides.
 """
 
 import os
+import re
 from pathlib import Path
-from typing import List
+from typing import List, Any, Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def _clean_key(val: Any) -> str:
+    """Trim whitespace and surrounding quotes; return empty string if whitespace-only."""
+    if val is None:
+        return ""
+    s = str(val).strip()
+    # Strip matched surrounding single or double quotes
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1].strip()
+    return s
+
+
+def get_data_gov_api_key() -> str:
+    """Resolve Data.gov.in API key in strict resolution order:
+    1. st.secrets["DATA_GOV_API_KEY"]
+    2. env DATA_GOV_API_KEY
+    3. st.secrets["DATA_GOV_IN_API_KEY"]
+    4. env DATA_GOV_IN_API_KEY
+    First non-empty wins. Whitespace and surrounding quotes are trimmed.
+    Whitespace-only values count as empty.
+    """
+    # 1. st.secrets["DATA_GOV_API_KEY"]
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and st.secrets is not None:
+            if "DATA_GOV_API_KEY" in st.secrets:
+                k1 = _clean_key(st.secrets["DATA_GOV_API_KEY"])
+                if k1:
+                    return k1
+    except Exception:
+        pass
+
+    # 2. env DATA_GOV_API_KEY
+    env_k1 = _clean_key(os.environ.get("DATA_GOV_API_KEY"))
+    if env_k1:
+        return env_k1
+
+    # 3. st.secrets["DATA_GOV_IN_API_KEY"]
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and st.secrets is not None:
+            if "DATA_GOV_IN_API_KEY" in st.secrets:
+                k2 = _clean_key(st.secrets["DATA_GOV_IN_API_KEY"])
+                if k2:
+                    return k2
+    except Exception:
+        pass
+
+    # 4. env DATA_GOV_IN_API_KEY
+    env_k2 = _clean_key(os.environ.get("DATA_GOV_IN_API_KEY"))
+    if env_k2:
+        return env_k2
+
+    # 5. Fallback to settings object attribute if loaded/patched
+    try:
+        if "settings" in globals():
+            s_obj = globals()["settings"]
+            k_set = _clean_key(getattr(s_obj, "DATA_GOV_API_KEY", "")) or _clean_key(getattr(s_obj, "DATA_GOV_IN_API_KEY", ""))
+            if k_set:
+                return k_set
+    except Exception:
+        pass
+
+    return ""
+
+
+def is_mandi_api_configured() -> bool:
+    """Return True if a non-empty Data.gov.in API key is configured."""
+    return bool(get_data_gov_api_key())
+
+
+def redact(text: Optional[str]) -> str:
+    """Redact Data.gov.in API key and any api-key=... query parameters in text, logs, or URLs."""
+    if not text:
+        return ""
+    s = str(text)
+    active_key = get_data_gov_api_key()
+    if active_key and active_key in s:
+        s = s.replace(active_key, "***")
+
+    # Also redact any api-key query param pattern: api-key=<anything>& or api_key=<anything>
+    s = re.sub(r"(api[-_]key=)[^& \t\r\n\'\"]+", r"\1***", s, flags=re.IGNORECASE)
+    return s
 
 
 def _load_streamlit_secrets_into_env() -> None:
@@ -53,6 +138,16 @@ def _load_streamlit_secrets_into_env() -> None:
 
             if secrets_db_url:
                 os.environ["DATABASE_URL"] = secrets_db_url
+
+            # Bridge DATA_GOV_API_KEY from st.secrets if non-empty
+            if "DATA_GOV_API_KEY" in st.secrets:
+                dg_val = _clean_key(st.secrets["DATA_GOV_API_KEY"])
+                if dg_val:
+                    os.environ["DATA_GOV_API_KEY"] = dg_val
+            elif "DATA_GOV_IN_API_KEY" in st.secrets:
+                dg_in_val = _clean_key(st.secrets["DATA_GOV_IN_API_KEY"])
+                if dg_in_val:
+                    os.environ["DATA_GOV_IN_API_KEY"] = dg_in_val
 
             # 2. Bridge other scalar secrets if not already in os.environ
             for key, val in st.secrets.items():
@@ -175,8 +270,9 @@ class Settings(BaseSettings):
 
     @property
     def data_gov_key(self) -> str:
-        """Return active data.gov.in API key from either setting."""
-        return self.DATA_GOV_API_KEY or self.DATA_GOV_IN_API_KEY
+        """Return active data.gov.in API key from unified resolution order."""
+        resolved = get_data_gov_api_key()
+        return resolved or self.DATA_GOV_API_KEY or self.DATA_GOV_IN_API_KEY
 
     @property
     def max_upload_size_bytes(self) -> int:
