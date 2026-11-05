@@ -1016,6 +1016,66 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mr": "वाहतूक खर्च व निव्वळ नफा गणक",
         "hi": "परिवहन खर्च व शुद्ध लाभ कैलकुलेटर",
     },
+    "mandi_today_live": {
+        "en": "Live auction rates for today (Agmarknet data.gov.in)",
+        "mr": "आजचे थेट लिलाव दर (Agmarknet data.gov.in)",
+        "hi": "आज के लाइव नीलामी भाव (Agmarknet data.gov.in)",
+    },
+    "mandi_today_not_published": {
+        "en": "Today's prices not yet published for this market. Showing latest available arrivals ({date}).",
+        "mr": "या बाजार समितीचे आजचे दर अद्याप प्रसिद्ध झालेले नाहीत. उपलब्ध नवीनतम आवक ({date}) दर्शवत आहे.",
+        "hi": "इस मंडी के आज के भाव अभी प्रकाशित नहीं हुए हैं। नवीनतम उपलब्ध आवक ({date}) दिखाई जा रही है।",
+    },
+    "mandi_showing_cached": {
+        "en": "Showing previously saved market rates from database ({date}).",
+        "mr": "डेटाबेसमध्ये साठवलेले मागील बाजारभाव दर्शवत आहे ({date}).",
+        "hi": "डेटाबेस में सहेजे गए पिछले भाव दिखाए जा रहे हैं ({date})।",
+    },
+    "mandi_no_data_found": {
+        "en": "No auction records published for this selection.",
+        "mr": "या निवडीसाठी कोणतेही बाजारभाव नोंदवलेले नाहीत.",
+        "hi": "इस चयन के लिए कोई नीलामी रिकॉर्ड नहीं मिला।",
+    },
+    "mandi_service_unavailable": {
+        "en": "Mandi price service is temporarily unavailable. Please retry shortly.",
+        "mr": "बाजारभाव सेवा तात्पुरती अनुपलब्ध आहे. कृपया थोड्या वेळाने प्रयत्न करा.",
+        "hi": "मंडी भाव सेवा अस्थायी रूप से अनुपलब्ध है। कृपया थोड़ी देर बाद पुनः प्रयास करें।",
+    },
+    "mandi_auth_failed": {
+        "en": "Authentication failed connecting to Data.gov.in API.",
+        "mr": "Data.gov.in API जोडताना प्रमाणीकरण अयशस्वी झाले.",
+        "hi": "Data.gov.in API से कनेक्ट करते समय प्रमाणीकरण विफल रहा।",
+    },
+    "mandi_source_caption": {
+        "en": "Source: Agmarknet via Data.gov.in",
+        "mr": "स्रोत: Agmarknet (Data.gov.in द्वारे)",
+        "hi": "स्रोत: Agmarknet (Data.gov.in के माध्यम से)",
+    },
+    "mandi_mode_live": {
+        "en": "Live API",
+        "mr": "थेट API",
+        "hi": "लाइव API",
+    },
+    "mandi_mode_saved": {
+        "en": "Saved Record",
+        "mr": "साठवलेले दर",
+        "hi": "सहेजा गया भाव",
+    },
+    "mandi_market": {
+        "en": "Market APMC",
+        "mr": "बाजार समिती",
+        "hi": "मंडी",
+    },
+    "mandi_all_markets": {
+        "en": "All Markets",
+        "mr": "सर्व बाजार समित्या",
+        "hi": "सभी मंडियां",
+    },
+    "mandi_diagnostics_title": {
+        "en": "Technical Diagnostics (Admin Only)",
+        "mr": "तांत्रिक माहिती (केवळ प्रशासक)",
+        "hi": "तकनीकी विवरण (केवल एडमिन)",
+    },
 
     # Farmer-Friendly Homepage Redesign
     "welcome_help_prompt": {

@@ -91,9 +91,9 @@ def render_market_page(farmer: AuthenticatedFarmer):
             index=state_idx,
         )
 
-    # Optional District & Variety Filter Expander
+    # Optional District, Market & Variety Filter Expander
     with st.expander(f"🔍 {t('filter', lang) if t('filter', lang) != 'Filter' else 'अधिक निकष (More Filters)'}", expanded=False):
-        c_sub1, c_sub2 = st.columns(2)
+        c_sub1, c_sub2, c_sub3 = st.columns(3)
         with c_sub1:
             sel_district = st.text_input(
                 f"🏛️ {t('mandi_district', lang)}",
@@ -101,6 +101,12 @@ def render_market_page(farmer: AuthenticatedFarmer):
                 placeholder="उदा. Nagpur, Nashik, Pune...",
             )
         with c_sub2:
+            sel_market = st.text_input(
+                f"🏬 {t('mandi_market', lang)}",
+                value="",
+                placeholder="उदा. Lasalgaon, Nagpur...",
+            )
+        with c_sub3:
             sel_variety = st.text_input(
                 f"🏷️ {t('mandi_variety', lang)}",
                 value="",
@@ -132,6 +138,7 @@ def render_market_page(farmer: AuthenticatedFarmer):
     # Fetch multi-market data
     state_arg = sel_state if sel_state != "All" else None
     district_arg = sel_district.strip() if sel_district.strip() else None
+    market_arg = sel_market.strip() if sel_market.strip() else None
     variety_arg = sel_variety.strip() if sel_variety.strip() else None
 
     with st.spinner("बाजारभाव माहिती मिळवत आहे..."):
@@ -139,10 +146,36 @@ def render_market_page(farmer: AuthenticatedFarmer):
             commodity=sel_comm,
             state=state_arg,
             district=district_arg,
+            market=market_arg,
             variety=variety_arg,
         )
 
     raw_records = mandi_res.get("records", [])
+
+    # Dynamic Notification Banner according to message_key
+    msg_key = mandi_res.get("message_key", "mandi_today_live")
+    latest_dt = mandi_res.get("latest_arrival_date") or mandi_res.get("retrieved_at", "")
+
+    if msg_key == "mandi_today_live":
+        st.success(f"🟢 **{t('mandi_today_live', lang)}** — 📅 {latest_dt}")
+    elif msg_key == "mandi_today_not_published":
+        raw_msg = t("mandi_today_not_published", lang)
+        formatted_msg = raw_msg.replace("{date}", str(latest_dt)) if "{date}" in raw_msg else f"{raw_msg} ({latest_dt})"
+        st.info(f"🟡 **{formatted_msg}**")
+    elif msg_key == "mandi_showing_cached":
+        raw_msg = t("mandi_showing_cached", lang)
+        formatted_msg = raw_msg.replace("{date}", str(latest_dt)) if "{date}" in raw_msg else f"{raw_msg} ({latest_dt})"
+        st.warning(f"📦 **{formatted_msg}**")
+    elif msg_key in ("mandi_service_unavailable", "unavailable"):
+        st.error(f"⚠️ **{t('mandi_service_unavailable', lang)}**")
+    elif msg_key == "mandi_auth_failed":
+        st.error(f"🔒 **{t('mandi_auth_failed', lang)}**")
+    elif msg_key == "mandi_no_data_found":
+        st.warning(f"ℹ️ **{t('mandi_no_data_found', lang)}**")
+    else:
+        notice_txt = mandi_res.get("notice")
+        if notice_txt:
+            st.info(f"ℹ️ {notice_txt}")
 
     # Enrich records with distance from farmer district & transport deduction
     farmer_district = farmer.district or "Nagpur"
@@ -184,14 +217,6 @@ def render_market_page(farmer: AuthenticatedFarmer):
         enriched_records,
         key=sort_options[sort_choice],
         reverse=not is_dist_sort,
-    )
-
-    # Data Mode Banner
-    st.info(
-        f"ℹ️ **{t('mandi_data_source', lang)}:** {mandi_res.get('data_mode')} | "
-        f"[अधिकृत Agmarknet पोर्टल]({mandi_res.get('official_portal_url')})\n\n"
-        f"🕒 {t('mandi_retrieved_at', lang)}: `{mandi_res.get('retrieved_at')}`\n\n"
-        f"{mandi_res.get('notice')}"
     )
 
     if not display_records:
@@ -247,6 +272,22 @@ def render_market_page(farmer: AuthenticatedFarmer):
                 st.info(
                     f"ℹ️ स्थानिक बाजार समिती **{local_rec['market']}** चा दर जास्त फायदेशीर ठरत आहे."
                 )
+
+    # Mandi Results Table (Compact & Comprehensive)
+    with st.expander(f"📑 {t('mandi_records_count', lang)} — तक्ता दृश्य (Table View)", expanded=False):
+        table_rows = []
+        for r in display_records:
+            table_rows.append({
+                "बाजार समिती (Market)": r.get("market"),
+                "जिल्हा (District)": r.get("district"),
+                "वाण (Variety)": r.get("variety"),
+                "आवक दिनांक (Arrival Date)": f"{r.get('data_date')} {r.get('freshness_badge', '')}",
+                "किमान (Min ₹/Qtl)": f"₹{int(r.get('min_price', 0))}",
+                "कमाल (Max ₹/Qtl)": f"₹{int(r.get('max_price', 0))}",
+                "मॉडेल भाव (Modal ₹/Qtl)": f"₹{int(r.get('modal_price', 0))}",
+                "निव्वळ भाव (Net ₹/Qtl)": f"₹{int(r.get('estimated_net_price', 0))}",
+            })
+        st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
 
     # Multi-Market Cards Comparison List
     st.markdown(f"#### 📋 {t('mandi_records_count', lang)} ({len(display_records)})")
@@ -337,6 +378,25 @@ def render_market_page(farmer: AuthenticatedFarmer):
             if st.button(t("mandi_set_alert_btn", lang)):
                 st.success(f"✅ {sel_comm} साठी ₹{int(alert_target)} चा भाव अलर्ट यशस्वीरीत्या सेट केला!")
 
-    # Footer Disclaimer
+    # Admin Technical Diagnostics
+    if getattr(farmer, "role", "") == "admin":
+        with st.expander(f"🛠️ {t('mandi_diagnostics_title', lang)}", expanded=False):
+            adm1, adm2, adm3 = st.columns(3)
+            with adm1:
+                st.write(f"**Data Source:** `{mandi_res.get('source')}`")
+                st.write(f"**Status Code:** `{mandi_res.get('status_code')}`")
+            with adm2:
+                st.write(f"**Retrieved:** `{mandi_res.get('retrieved_at')}`")
+                st.write(f"**Latest Date:** `{mandi_res.get('latest_arrival_date')}`")
+            with adm3:
+                st.write(f"**Has Today Prices:** `{mandi_res.get('has_today_prices')}`")
+                st.write(f"**Records Count:** `{len(raw_records)}`")
+
+    # Footer Attribution & Disclaimer
     st.markdown("---")
+    source_tag = t("mandi_mode_live", lang) if mandi_res.get("source") == "live" else t("mandi_mode_saved", lang)
+    st.caption(
+        f"🏛️ **{t('mandi_source_caption', lang)}** | 🕒 {mandi_res.get('retrieved_at')} | 🏷️ {source_tag} | "
+        f"[अधिकृत Agmarknet पोर्टल]({mandi_res.get('official_portal_url', 'https://agmarknet.gov.in/')})"
+    )
     st.caption(f"⚠️ **महत्त्वाची सूचना:** {t('mandi_disclaimer_notice', lang)}")
