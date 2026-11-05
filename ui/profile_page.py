@@ -1,5 +1,7 @@
 """Farmer Profile and Account Settings UI page."""
 
+import json
+import textwrap
 import streamlit as st
 from core.database import get_db
 from core.auth import AuthenticatedFarmer
@@ -11,8 +13,6 @@ from ui.state import set_language, logout, set_current_farmer
 
 def render_profile_page(farmer: AuthenticatedFarmer):
     """Render profile details, settings, password change, and account deletion."""
-    st.title("👤 शेतकरी प्रोफाइल व खाते सेटिंग्ज (Farmer Profile & Settings)")
-
     with get_db() as db:
         user_record = UserService.get_farmer_by_id(db, farmer.id)
 
@@ -20,9 +20,36 @@ def render_profile_page(farmer: AuthenticatedFarmer):
         st.error("वापरकर्ता खाते सापडले नाही.")
         return
 
-    tab_profile, tab_security, tab_danger = st.tabs([
+    st.markdown(
+        textwrap.dedent(f"""
+        <div class="agri-hero-banner" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <div style="display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px;">
+                        👤 शेतकरी खाते • Farmer Profile
+                    </div>
+                    <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">
+                        {user_record.full_name}
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.88); font-size: 0.95rem; margin-top: 4px;">
+                        {user_record.village or 'गाव'}, {user_record.district or 'जिल्हा'}, {user_record.state or 'महाराष्ट्र'} | शेतजमीन: {user_record.farm_size or 0} एकर
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 12px; color: #ffffff; font-weight: 700; font-size: 0.9rem;">
+                        🌾 Verified Farmer ID: #{user_record.id[:8]}
+                    </span>
+                </div>
+            </div>
+        </div>
+        """).strip(),
+        unsafe_allow_html=True,
+    )
+
+    tab_profile, tab_security, tab_export, tab_danger = st.tabs([
         "📋 वैयक्तिक व शेती माहिती (Profile)",
         "🔒 पासवर्ड बदला (Security)",
+        "📥 माझा डेटा डाउनलोड करा (Export My Data)",
         "⚠️ खाते हटवा (Delete Account)",
     ])
 
@@ -125,7 +152,29 @@ def render_profile_page(farmer: AuthenticatedFarmer):
                 except Exception as e:
                     st.error(f"त्रुटी: {str(e)}")
 
-    # ---------------- TAB 3: DELETE ACCOUNT ----------------
+    # ---------------- TAB 3: EXPORT DATA (DPDP ACT 2023) ----------------
+    with tab_export:
+        st.markdown("##### 📥 माझा संपूर्ण कृषी डेटा डाउनलोड करा (Export My Personal Data)")
+        st.caption("डिजिटल वैयक्तिक डेटा संरक्षण कायदा (DPDP Act, 2023) अंतर्गत शेतकऱ्यांना त्यांच्या सर्व नोंदी प्राप्त करण्याचा कायदेशीर अधिकार आहे.")
+
+        with get_db() as db:
+            farmer_export_data = UserService.export_farmer_personal_data(db, farmer.id)
+            export_json_str = json.dumps(farmer_export_data, indent=2, ensure_ascii=False)
+
+        st.info(
+            "या फाईलमध्ये आपल्या खात्याशी संबंधित प्रोफाइल, सर्व पिके, दैनंदिनी कामे, खर्च, उत्पादन आणि AI प्रश्नोत्तरांची माहिती समाविष्ट आहे."
+        )
+
+        st.download_button(
+            label="💾 सर्व शेती माहिती JSON स्वरूपात डाउनलोड करा (Download Data JSON)",
+            data=export_json_str,
+            file_name=f"agrisaathi_farmer_{farmer.id}.json",
+            mime="application/json",
+            use_container_width=True,
+            type="primary",
+        )
+
+    # ---------------- TAB 4: DELETE ACCOUNT ----------------
     with tab_danger:
         st.markdown("##### ⚠️ खाते व सर्व शेती नोंदी कायमस्वरूपी हटवा (Delete Account)")
         st.warning(

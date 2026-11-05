@@ -953,14 +953,27 @@ class MandiService:
             logger.warning(f"Could not persist Mandi cache to DB: {e}")
 
     @classmethod
-    def _get_db_cache(cls, cache_key: str) -> Optional[Dict[str, Any]]:
-        """Retrieve cached entry from database if not expired."""
+    def _get_db_cache(cls, cache_key: str, allow_stale: bool = True) -> Optional[Dict[str, Any]]:
+        """Retrieve cached entry from database, optionally permitting stale fallback when live API is unavailable."""
         try:
             with get_db() as db:
                 entry = db.query(MandiPriceCache).filter(MandiPriceCache.cache_key == cache_key).first()
                 if entry:
                     cached_data = json.loads(entry.response_json)
                     cached_data["cached_at"] = entry.cached_at.strftime("%Y-%m-%d %H:%M")
+
+                    # Check expiration against TTL
+                    now = datetime.now(timezone.utc).replace(tzinfo=None)
+                    exp = entry.expires_at.replace(tzinfo=None) if entry.expires_at else now
+                    is_expired = now > exp
+                    if is_expired:
+                        if not allow_stale:
+                            return None
+                        cached_data["is_stale"] = True
+                        cached_data["is_live_api"] = False
+                    else:
+                        cached_data["is_stale"] = False
+
                     return cached_data
         except Exception as e:
             logger.warning(f"Error reading Mandi cache from DB: {e}")
@@ -1008,6 +1021,53 @@ class MandiService:
             logger.warning(f"Error persisting Mandi price history snapshot: {e}")
 
     @classmethod
+    def calculate_net_return(
+        cls,
+        modal_price: float,
+        quantity_quintals: float = 1.0,
+        distance_km: float = 0.0,
+        transport_rate_per_100km: float = 50.0,
+        market_fee_percent: float = 0.0,
+        loading_charge_per_qtl: float = 0.0,
+    ) -> Dict[str, float]:
+        """Calculate net market return per quintal and total consignment after logistics deductions.
+
+        Formula (Plain text):
+          Gross Revenue = Modal Price * Quantity
+          Transport Cost = (Distance / 100) * Transport Rate per 100 km * Quantity
+          Market Fee (APMC cess) = (Modal Price * Market Fee %) / 100 * Quantity
+          Loading Charges = Loading Charge per Quintal * Quantity
+          Total Deductions = Transport Cost + Market Fee + Loading Charges
+          Net Return = Gross Revenue - Total Deductions
+          Net Price per Quintal = Net Return / Quantity
+        """
+        qty = max(0.01, float(quantity_quintals))
+        price = float(modal_price)
+        gross_rev = round(price * qty, 2)
+        trans_cost_per_qtl = round((float(distance_km) / 100.0) * float(transport_rate_per_100km), 2)
+        total_trans_cost = round(trans_cost_per_qtl * qty, 2)
+        mkt_fee_per_qtl = round((price * float(market_fee_percent)) / 100.0, 2)
+        total_mkt_fee = round(mkt_fee_per_qtl * qty, 2)
+        loading_per_qtl = round(float(loading_charge_per_qtl), 2)
+        total_loading = round(loading_per_qtl * qty, 2)
+        total_deductions = round(total_trans_cost + total_mkt_fee + total_loading, 2)
+        net_return = round(max(0.0, gross_rev - total_deductions), 2)
+        net_price_per_qtl = round(net_return / qty, 2)
+
+        return {
+            "gross_revenue": gross_rev,
+            "transport_cost": total_trans_cost,
+            "transport_cost_per_qtl": trans_cost_per_qtl,
+            "market_fee": total_mkt_fee,
+            "market_fee_per_qtl": mkt_fee_per_qtl,
+            "loading_charges": total_loading,
+            "loading_charge_per_qtl": loading_per_qtl,
+            "total_deductions": total_deductions,
+            "net_return": net_return,
+            "net_price_per_qtl": net_price_per_qtl,
+        }
+
+    @classmethod
     def get_best_markets(
         cls,
         commodity: str,
@@ -1015,8 +1075,10 @@ class MandiService:
         state: Optional[str] = None,
         top_n: int = 10,
         transport_cost_per_qtl_100km: float = 50.0,
+        market_fee_percent: float = 0.0,
+        loading_charge_per_qtl: float = 0.0,
     ) -> List[Dict[str, Any]]:
-        """Calculate road distance, transport deduction, and estimated net price per market."""
+        """Calculate road distance, logistics deductions, and estimated net return per market."""
         res = cls.get_prices(commodity=commodity, state=state)
         records = res.get("records", [])
 
@@ -1025,14 +1087,23 @@ class MandiService:
             market_dist = r.get("district") or farmer_district
             dist_km = cls.get_district_distance(farmer_district, market_dist)
             modal = float(r.get("modal_price", 0.0))
-            # Transport cost = (distance / 100) * transport_rate
-            trans_cost = round((dist_km / 100.0) * transport_cost_per_qtl_100km, 2)
-            net_price = round(max(0.0, modal - trans_cost), 2)
+
+            calc = cls.calculate_net_return(
+                modal_price=modal,
+                quantity_quintals=1.0,
+                distance_km=dist_km,
+                transport_rate_per_100km=transport_cost_per_qtl_100km,
+                market_fee_percent=market_fee_percent,
+                loading_charge_per_qtl=loading_charge_per_qtl,
+            )
 
             item = dict(r)
             item["distance_km"] = dist_km
-            item["transport_cost_per_qtl"] = trans_cost
-            item["estimated_net_price"] = net_price
+            item["transport_cost_per_qtl"] = calc["transport_cost_per_qtl"]
+            item["market_fee_per_qtl"] = calc["market_fee_per_qtl"]
+            item["loading_charge_per_qtl"] = calc["loading_charge_per_qtl"]
+            item["total_deductions_per_qtl"] = calc["total_deductions"]
+            item["estimated_net_price"] = calc["net_price_per_qtl"]
             enriched.append(item)
 
         # Default rank by modal price

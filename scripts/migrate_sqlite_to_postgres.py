@@ -133,16 +133,33 @@ def run_migration(
 
         migrated_for_table = 0
         if row_count > 0:
-            # Batch insertion
             columns = [c.name for c in src_tbl.columns]
             dict_rows = [dict(zip(columns, row)) for row in rows]
 
             with pg_session_factory() as pg_db:
-                for i in range(0, len(dict_rows), batch_size):
-                    batch = dict_rows[i : i + batch_size]
-                    # Insert ignoring duplicates on primary key
-                    pg_db.execute(target_tbl.insert(), batch)
-                    migrated_for_table += len(batch)
+                # Idempotent deduplication: skip records already present in target PostgreSQL
+                pk_col = target_tbl.primary_key.columns.keys()[0] if target_tbl.primary_key.columns else None
+                existing_pks = set()
+                if pk_col and pk_col in target_tbl.c:
+                    existing_pks = {
+                        r[0] for r in pg_db.execute(select(target_tbl.c[pk_col])).fetchall()
+                    }
+
+                rows_to_insert = [r for r in dict_rows if pk_col is None or r.get(pk_col) not in existing_pks]
+
+                # Convert boolean columns for PostgreSQL strict typing
+                for r in rows_to_insert:
+                    for col in target_tbl.columns:
+                        if hasattr(col.type, "python_type") and col.type.python_type is bool:
+                            val = r.get(col.name)
+                            if val is not None:
+                                r[col.name] = bool(val)
+
+                for i in range(0, len(rows_to_insert), batch_size):
+                    batch = rows_to_insert[i : i + batch_size]
+                    if batch:
+                        pg_db.execute(target_tbl.insert(), batch)
+                        migrated_for_table += len(batch)
                 pg_db.commit()
 
         # Verify post-migration count
@@ -182,14 +199,19 @@ def run_migration(
 def main():
     parser = argparse.ArgumentParser(description="AgriSaathi AI SQLite to PostgreSQL Migration CLI")
     parser.add_argument(
+        "--sqlite-path",
+        default=None,
+        help="Direct path to SQLite file (e.g. data/agrisaathi.db)",
+    )
+    parser.add_argument(
         "--sqlite-url",
-        default=settings.DATABASE_URL,
+        default=None,
         help="Source SQLite database URL (defaults to active DATABASE_URL)",
     )
     parser.add_argument(
         "--postgres-url",
-        default=os.environ.get("TARGET_POSTGRES_URL", "postgresql://agrisaathi:securepass@localhost:5432/agrisaathi_prod"),
-        help="Target PostgreSQL database URL (or set TARGET_POSTGRES_URL env var)",
+        default=os.environ.get("TARGET_POSTGRES_URL", os.environ.get("DATABASE_URL", "postgresql://agrisaathi:securepass@localhost:5432/agrisaathi_prod")),
+        help="Target PostgreSQL database URL (or set TARGET_POSTGRES_URL or DATABASE_URL env var)",
     )
     parser.add_argument(
         "--dry-run",
@@ -198,9 +220,16 @@ def main():
     )
     args = parser.parse_args()
 
+    src_url = args.sqlite_url
+    if args.sqlite_path:
+        p = Path(args.sqlite_path).resolve()
+        src_url = f"sqlite:///{p.as_posix()}"
+    elif not src_url:
+        src_url = settings.DATABASE_URL
+
     try:
         run_migration(
-            sqlite_url=args.sqlite_url,
+            sqlite_url=src_url,
             postgres_url=args.postgres_url,
             dry_run=args.dry_run,
         )

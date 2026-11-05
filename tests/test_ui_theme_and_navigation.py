@@ -194,3 +194,46 @@ def test_dashboard_growth_stage_care_advice():
     tip_mat = get_stage_care_advice("Maturity", "mr")
     assert "पक्व" in tip_mat or "काढणी" in tip_mat
 
+
+def test_crop_stage_index_mapping():
+    """Verify growth stage maps to 0..5 progression steps."""
+    from ui.components.crop_card import get_stage_index
+
+    assert get_stage_index("Sowing / Nursery") == 0
+    assert get_stage_index("Germination") == 1
+    assert get_stage_index("Vegetative Growth") == 2
+    assert get_stage_index("Flowering") == 3
+    assert get_stage_index("Pod / Fruit Formation") == 4
+    assert get_stage_index("Ready for Harvest") == 5
+
+
+def test_theme_css_tokens():
+    """Verify central theme CSS contains the warm earthy palette and 56px touch rules."""
+    from ui.theme import inject_custom_theme
+
+    with patch("streamlit.markdown") as mock_md:
+        inject_custom_theme()
+        args, _ = mock_md.call_args
+        css_content = args[0]
+        assert "#2e7d32" in css_content
+        assert "#f9a825" in css_content
+        assert "#6d4c41" in css_content
+        assert "#4fc3f7" in css_content
+        assert "#fff8e1" in css_content
+        assert "56px" in css_content
+        assert "agri-bottom-nav" in css_content
+        assert "tilt-card" in css_content
+        assert "Noto Sans Devanagari" in css_content
+
+
+def test_bottom_nav_component_execution():
+    """Verify bottom navigation renders all 5 thumb targets."""
+    from ui.components.bottom_nav import render_bottom_nav
+
+    with patch("streamlit.button", return_value=False) as mock_btn, \
+         patch("streamlit.markdown"), \
+         patch("streamlit.session_state", {}):
+        render_bottom_nav(current_page="dashboard", is_admin=True)
+        assert mock_btn.call_count >= 5
+
+

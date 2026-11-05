@@ -5,15 +5,17 @@ sanitized CSV/Excel/JSON data exports, database backup & restore, and audit logg
 Strictly restricted to users with role="admin".
 """
 
+import textwrap
 import streamlit as st
 
-from core.database import get_db
+from core.database import get_db, get_database_info
 from core.auth import AuthenticatedFarmer, require_admin
 from core.exceptions import AuthorizationError
 from services.admin_service import AdminService
 from services.backup_service import BackupService
 from utils.formatting import format_inr
 from utils.logging_config import logger
+from ui.state import set_page, logout
 
 
 def render_admin_page(admin: AuthenticatedFarmer):
@@ -24,35 +26,61 @@ def render_admin_page(admin: AuthenticatedFarmer):
         st.error(f"⛔ {e.message}")
         st.stop()
 
+    # ---------------- ADMIN TOP BAR & ACTION BUTTONS ----------------
+    top_nav_c1, top_nav_c2 = st.columns([3, 1])
+    with top_nav_c1:
+        st.caption("🛡️ ENTERPRISE PLATFORM GOVERNANCE & TELEMETRY")
+    with top_nav_c2:
+        btn_exit_c, btn_out_c = st.columns(2)
+        with btn_exit_c:
+            if st.button("🏠 Farmer App", key="admin_exit_to_farmer_btn", use_container_width=True, type="secondary"):
+                set_page("dashboard")
+                st.rerun()
+        with btn_out_c:
+            if st.button("🚪 Logout", key="admin_top_logout_btn", use_container_width=True):
+                logout()
+                st.rerun()
+
     # ---------------- ADMIN HEADER ----------------
-    st.markdown(
-        """
-        <div style="background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); color: white; border-radius: 14px; padding: 18px 22px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(27,94,32,0.18);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <h2 style="margin: 0; color: #ffffff; font-size: 1.55rem; font-weight: 700;">
-                        🛠️ AgriSaathi AI — Developer Admin Panel
-                    </h2>
-                    <p style="margin: 4px 0 0 0; color: #e8f5e9; font-size: 0.95rem;">
-                        System Monitoring, Agricultural Analytics, Authorized Data Exports & Maintenance
-                    </p>
+    admin_hdr_html = textwrap.dedent(f"""
+        <div style="
+            background: linear-gradient(135deg, #07190f 0%, #0d281a 45%, #153e28 100%);
+            color: white;
+            border-radius: 22px;
+            padding: 22px 26px;
+            margin-bottom: 20px;
+            box-shadow: 0 16px 36px -8px rgba(7, 25, 15, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(134, 239, 172, 0.2);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border: 1px solid rgba(255, 255, 255, 0.2);">
+                        🛠️
+                    </div>
+                    <div>
+                        <div style="font-size: 0.78rem; font-weight: 800; letter-spacing: 0.1em; color: #86efac; text-transform: uppercase;">
+                            Control Center • Enterprise Edition
+                        </div>
+                        <h2 style="margin: 2px 0 0 0; color: #ffffff; font-size: 1.65rem; font-weight: 800; letter-spacing: -0.01em;">
+                            AgriSaathi AI — Platform Command Center
+                        </h2>
+                    </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: rgba(255,255,255,0.22); padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: #ffffff; border: 1px solid rgba(255,255,255,0.35);">
-                        👤 Admin: <strong>{admin_name}</strong>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="background: rgba(255,255,255,0.14); padding: 6px 14px; border-radius: 20px; font-size: 0.86rem; font-weight: 700; color: #ffffff; border: 1px solid rgba(255,255,255,0.25);">
+                        👤 Admin: <strong>{admin.full_name}</strong>
                     </span>
-                    <span style="background: #e8f5e9; color: #1b5e20; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700;">
-                        🔒 Role: ADMIN
+                    <span style="background: #e8f5e9; color: #0b2316; padding: 6px 14px; border-radius: 20px; font-size: 0.86rem; font-weight: 800;">
+                        🛡️ SUPERUSER
                     </span>
                 </div>
             </div>
         </div>
-        """.format(admin_name=admin.full_name),
-        unsafe_allow_html=True,
-    )
+    """).strip()
+    st.markdown(admin_hdr_html, unsafe_allow_html=True)
 
-    # 9 Administrative Tabs
-    tab_overview, tab_farmers, tab_crops, tab_acts, tab_fin, tab_ai, tab_exports, tab_backup, tab_audit = st.tabs([
+    # 9 Administrative Sections via Segmented Control
+    admin_nav_opts = [
         "📊 Overview",
         "👥 Farmers",
         "🌾 Crop Analytics",
@@ -62,12 +90,24 @@ def render_admin_page(admin: AuthenticatedFarmer):
         "📥 Data Exports",
         "🛡️ Backup & Maintenance",
         "📜 Audit Logs",
-    ])
+    ]
+
+    admin_section = st.segmented_control(
+        "Admin Navigation",
+        options=admin_nav_opts,
+        default="📊 Overview",
+        key="admin_segmented_nav",
+        label_visibility="collapsed",
+    )
+    if not admin_section:
+        admin_section = "📊 Overview"
+
+    st.markdown("<div style='margin-bottom: 18px;'></div>", unsafe_allow_html=True)
 
     # =========================================================================
     # TAB 1: OVERVIEW
     # =========================================================================
-    with tab_overview:
+    if admin_section == "📊 Overview":
         st.subheader("📊 Platform Health & System Overview")
         try:
             with get_db() as db:
@@ -181,7 +221,7 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     # TAB 2: FARMER MANAGEMENT
     # =========================================================================
-    with tab_farmers:
+    elif admin_section == "👥 Farmers":
         st.subheader("👥 Farmer Account Management")
         st.caption("Search, filter, inspect profiles, and manage active status. Passwords and hashes are strictly concealed.")
 
@@ -264,7 +304,7 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     # TAB 3: CROP ANALYTICS
     # =========================================================================
-    with tab_crops:
+    elif admin_section == "🌾 Crop Analytics":
         st.subheader("🌾 Crop Cultivation & Distribution Analytics")
         try:
             with get_db() as db:
@@ -316,7 +356,7 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     # TAB 4: ACTIVITY ANALYTICS
     # =========================================================================
-    with tab_acts:
+    elif admin_section == "🚜 Activities":
         st.subheader("🚜 Agricultural Operations & Field Activities")
         try:
             with get_db() as db:
@@ -364,7 +404,7 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     # TAB 5: FINANCIAL HEALTH ANALYTICS
     # =========================================================================
-    with tab_fin:
+    elif admin_section == "💰 Financial Health":
         st.subheader("💰 Platform Financial & Cultivation Economics")
         try:
             with get_db() as db:
@@ -421,7 +461,7 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     # TAB 6: AI USAGE & TOPICS ANALYTICS
     # =========================================================================
-    with tab_ai:
+    elif admin_section == "🤖 AI Usage":
         st.subheader("🤖 AI Advisor Usage & Topic Intelligence")
         st.caption("Privacy Notice: Individual conversations remain confidential. Aggregated topic frequencies and system volumes are shown.")
 
@@ -458,16 +498,16 @@ def render_admin_page(admin: AuthenticatedFarmer):
     # =========================================================================
     # TAB 7: DATA EXPORTS (CSV, EXCEL XLSX, JSON)
     # =========================================================================
-    with tab_exports:
+    elif admin_section == "📥 Data Exports":
         st.subheader("📥 Authorized & Sanitized Data Exports")
         st.markdown(
-            """
+            textwrap.dedent("""
             <div style="background: #e8f5e9; border: 1.5px solid #a5d6a7; border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.92rem; color: #1b5e20;">
                 🔒 <strong>Security & Privacy Guarantee:</strong> All exports strictly omit password hashes, tokens, API keys, and private chats.
                 Exports are generated in UTF-8 BOM encoding for seamless Microsoft Excel compatibility with Devanagari (Marathi/Hindi).
                 Every export is permanently recorded in the Admin Audit Log.
             </div>
-            """,
+            """).strip(),
             unsafe_allow_html=True,
         )
 
@@ -528,17 +568,46 @@ def render_admin_page(admin: AuthenticatedFarmer):
                 st.error(f"❌ Export failed: {exp_err}")
 
     # =========================================================================
-    # TAB 8: BACKUP & POSTGRESQL MIGRATION
+    # TAB 8: BACKUP, PERSISTENCE & POSTGRESQL MIGRATION
     # =========================================================================
-    with tab_backup:
-        st.subheader("🛡️ Database Backup, Restore & Production PostgreSQL Migration")
+    elif admin_section == "🛡️ Backup & Maintenance":
+        st.subheader("🛡️ Database Persistence, Backups & Migration Architecture")
 
-        st.markdown("##### 1. One-Click SQLite Database Backup")
-        st.caption("Creates an atomic snapshot using SQLite's Online Backup API with integrity check verification.")
+        # 1. Active Database Engine Diagnostic Card
+        db_info = get_database_info()
+        is_persistent = db_info.get("is_persistent", False)
+
+        if is_persistent:
+            st.success(
+                f"✅ **Persistent Cloud Database Active:** Connected to `{db_info.get('engine')}` (`{db_info.get('sanitized_url')}`). "
+                "Farmer records and agricultural data are stored permanently on durable cloud storage and will persist across all Streamlit Cloud reboots, sleeps, and redeployments."
+            )
+        else:
+            st.warning(
+                "⚠️ **Development SQLite Database Active:** Currently running on local disk storage (`data/agrisaathi.db`). "
+                "For Streamlit Community Cloud production deployments, configure `DATABASE_URL` in Streamlit Secrets pointing to a persistent PostgreSQL database (e.g. Neon or Supabase) to ensure farmer records persist permanently."
+            )
+
+        with st.expander("🔍 Connection Pooling & Storage Diagnostics", expanded=False):
+            diag_c1, diag_c2, diag_c3 = st.columns(3)
+            with diag_c1:
+                st.metric("Database Engine", db_info.get("engine", "unknown").upper())
+                st.metric("SQLAlchemy Dialect", db_info.get("dialect", "unknown"))
+            with diag_c2:
+                st.metric("Storage Durability", "Cloud Persistent" if is_persistent else "Local Ephemeral")
+                st.metric("Connection Pre-Ping", "Active (pool_pre_ping=True)")
+            with diag_c3:
+                st.metric("Connection Pool Size", str(db_info.get("pool_size", "N/A")))
+                st.metric("Pool Recycle (Seconds)", str(db_info.get("pool_recycle_seconds", "N/A")))
+
+        st.markdown("---")
+        st.markdown("##### 1. One-Click Database Snapshot & Backup")
+        st.caption("Creates an immediate, atomic snapshot of all tables, foreign keys, and farmer records.")
 
         bak_col1, bak_col2 = st.columns([2, 1])
         with bak_col1:
-            if st.button("💾 Create Database Backup Now", key="btn_create_backup", type="primary", use_container_width=True):
+            btn_label = "💾 Create SQLite Database Backup Now" if not is_persistent else "💾 Create Portable JSON Snapshot Now"
+            if st.button(btn_label, key="btn_create_backup", type="primary", use_container_width=True):
                 try:
                     dest_p, b_name, b_sz = BackupService.create_backup(admin)
                     st.success(f"✅ Backup created successfully: **{b_name}** ({round(b_sz / 1024, 1)} KB)")
@@ -551,19 +620,21 @@ def render_admin_page(admin: AuthenticatedFarmer):
         if existing_backups:
             st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
             st.markdown(f"**Available Backups ({len(existing_backups)}):**")
-            for b in existing_backups[:5]:
+            for b in existing_backups[:8]:
                 b_c1, b_c2 = st.columns([3, 1])
                 with b_c1:
-                    st.markdown(f"📦 **{b['filename']}** ({b['size_mb']} MB • {b['created_at']})")
+                    fmt_label = b.get("format", "Backup")
+                    st.markdown(f"📦 **{b['filename']}** ({fmt_label} • {b['size_mb']} MB • {b['created_at']})")
                 with b_c2:
                     try:
                         with open(b["path"], "rb") as bf:
                             bytes_data = bf.read()
+                        mime_t = "application/json" if b["filename"].endswith(".json") else "application/x-sqlite3"
                         st.download_button(
                             label="⬇️ Download",
                             data=bytes_data,
                             file_name=b["filename"],
-                            mime="application/x-sqlite3",
+                            mime=mime_t,
                             key=f"dl_backup_{b['filename']}",
                             use_container_width=True,
                         )
@@ -575,12 +646,12 @@ def render_admin_page(admin: AuthenticatedFarmer):
         st.caption("Safety Notice: A pre-restore safety snapshot of the active database is automatically created before any restoration.")
 
         restore_file = st.file_uploader(
-            "Upload Valid SQLite Backup File (.db)",
-            type=["db", "sqlite", "sqlite3"],
+            "Upload Valid Backup File (.db or .json)",
+            type=["db", "sqlite", "sqlite3", "json"],
             key="restore_db_uploader",
         )
 
-        confirm_restore = st.checkbox("⚠️ I understand that restoring will overwrite active database records.", key="chk_confirm_restore")
+        confirm_restore = st.checkbox("⚠️ I understand that restoring will update or overwrite active database records.", key="chk_confirm_restore")
 
         if restore_file and confirm_restore:
             if st.button("🚨 Execute Database Restore", key="btn_run_restore", type="secondary"):
@@ -588,32 +659,46 @@ def render_admin_page(admin: AuthenticatedFarmer):
                     bytes_to_restore = restore_file.read()
                     res = BackupService.restore_backup(admin, bytes_to_restore)
                     st.success(f"✅ {res['message']} (Restored {round(res['restored_size_bytes'] / 1024, 1)} KB)")
-                    st.info(f"Pre-restore safety backup preserved at: {res.get('safety_snapshot')}")
+                    if res.get("safety_snapshot"):
+                        st.info(f"Pre-restore safety backup preserved at: `{res.get('safety_snapshot')}`")
                 except Exception as rest_err:
                     st.error(f"❌ Restore failed: {rest_err}")
 
         st.markdown("---")
-        st.markdown("##### 3. Production PostgreSQL Migration Procedure")
+        st.markdown("##### 3. Production PostgreSQL Setup & Migration Guide")
         st.markdown(
-            """
-            AgriSaathi AI provides a standalone topological migration script to migrate all farmer data,
-            passwords, crops, and audit logs to a persistent PostgreSQL database for high-concurrency production deployments.
+            textwrap.dedent("""
+            To achieve **permanent, durable farmer record retention** that survives Streamlit Cloud reboots, inactivity sleep, and redeployments:
 
-            **To migrate SQLite to PostgreSQL in production:**
+            **Step A: Provision a Free Managed PostgreSQL Database**
+            1. Create a free account at [Neon.tech](https://neon.tech) (recommended, zero-idle sleep wake-ups) or [Supabase.com](https://supabase.com).
+            2. Copy your connection URI string:
+               `postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require`
+
+            **Step B: Migrate Existing SQLite Records to PostgreSQL**
             ```bash
-            # Dry-run inspection (validates tables and row counts)
+            # 1. Dry run inspection (verifies tables and row parity)
             python scripts/migrate_sqlite_to_postgres.py --dry-run
 
-            # Live migration to production PostgreSQL database
-            python scripts/migrate_sqlite_to_postgres.py --postgres-url "postgresql://user:password@localhost:5432/agrisaathi_prod"
+            # 2. Live migration to your target PostgreSQL database
+            python scripts/migrate_sqlite_to_postgres.py --sqlite-path ./data/agrisaathi.db --postgres-url "postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require"
             ```
-            """
+
+            **Step C: Configure Streamlit Community Cloud Secrets**
+            In your Streamlit Cloud Dashboard, open **App Settings > Secrets** and paste:
+            ```toml
+            DATABASE_URL = "postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require"
+            ADMIN_EMAIL = "admin@agrisaathi.internal"
+            ADMIN_PASSWORD = "YourSecurePassword123!"
+            ```
+            The application will automatically connect to the durable PostgreSQL instance on startup and retain all farmer records forever.
+            """).strip()
         )
 
     # =========================================================================
     # TAB 9: AUDIT LOGS
     # =========================================================================
-    with tab_audit:
+    elif admin_section == "📜 Audit Logs":
         st.subheader("📜 Administrative Activity & Audit Trail")
         st.caption("Chronological record of admin actions, record access, status changes, and data exports.")
 

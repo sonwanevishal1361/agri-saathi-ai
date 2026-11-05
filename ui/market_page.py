@@ -1,5 +1,10 @@
-"""Multi-Market APMC Mandi Price Comparison and Transport Logistics Page."""
+"""Multi-Market APMC Mandi Price Comparison and Transport Logistics Page.
 
+Featuring podium-style cards for top 3 markets, best net return highlighted in harvest gold,
+simple visual bar charts, and browser Web Speech voice support.
+"""
+
+import textwrap
 import urllib.parse
 from datetime import datetime
 import pandas as pd
@@ -10,14 +15,44 @@ from services.crop_service import CropService
 from services.mandi_service import MandiService
 from utils.formatting import format_inr
 from utils.language import t
+from ui.components.voice_button import render_voice_mic_button, render_speaker_button
+from ui.components.podium_card import render_podium_cards
 
 
 def render_market_page(farmer: AuthenticatedFarmer):
     """Render interactive multi-market APMC comparison portal."""
     lang = farmer.preferred_language or "mr"
 
-    st.title(f"📈 {t('mandi_title', lang)}")
-    st.markdown(t("mandi_subtitle", lang))
+    hdr_html = textwrap.dedent(f"""
+        <div class="agri-hero-banner" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <div style="display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px;">
+                        📈 {t('mandi_title', lang)} • थेट बाजारभाव
+                    </div>
+                    <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">
+                        {t('mandi_title', lang)}
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.88); font-size: 0.95rem; margin-top: 4px;">
+                        {t('mandi_subtitle', lang)}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 12px; color: #ffffff; font-weight: 700; font-size: 0.9rem;">
+                        📍 {farmer.district or 'महाराष्ट्र'} APMC Live
+                    </span>
+                </div>
+            </div>
+        </div>
+    """).strip()
+    st.markdown(hdr_html, unsafe_allow_html=True)
+
+    # Voice Assistance Bar
+    m_vcol1, m_vcol2 = st.columns([1, 1])
+    with m_vcol1:
+        render_voice_mic_button(lang, prompt_placeholder="🎙️ पिकाचे नाव बोला (Speak crop name)")
+    with m_vcol2:
+        render_speaker_button("आजचे ताजे कृषी उत्पन्न बाजारभाव पहा आणि वाहतूक खर्च वजा जाता सर्वोत्तम निव्वळ नफा मिळवणारी बाजार समिती निवडा.", lang)
 
     # Determine default commodity based on farmer's active crops
     default_comm_index = 0
@@ -35,7 +70,7 @@ def render_market_page(farmer: AuthenticatedFarmer):
                 default_comm_index = idx
                 break
 
-    # Top Filters in Responsive Columns
+    # Top Filters in Responsive Columns (56px Touch Targets)
     f1, f2 = st.columns(2)
     with f1:
         sel_comm = st.selectbox(
@@ -140,7 +175,7 @@ def render_market_page(farmer: AuthenticatedFarmer):
     sort_choice = st.radio(
         f"📊 **{t('mandi_sort_by', lang)}:**",
         options=list(sort_options.keys()),
-        index=0,
+        index=1,  # Default to Net Price for farmer profit maximization
         horizontal=True,
     )
 
@@ -163,40 +198,23 @@ def render_market_page(farmer: AuthenticatedFarmer):
         st.warning(f"⚠️ {t('mandi_no_records_found', lang)}")
         return
 
-    # Top Hero Card: Best Price Today
-    top_record = display_records[0]
-    with st.container(border=True):
-        st.markdown(
-            f"<div style='background: linear-gradient(135deg, #1b5e20, #2e7d32); "
-            f"padding: 16px; border-radius: 12px; color: white; margin-bottom: 8px;'>"
-            f"<span style='font-size: 1.25rem; font-weight: bold;'>{t('mandi_best_price_today', lang)}</span>"
-            f"<h2 style='color: #ffeb3b; margin: 4px 0 8px 0; font-size: 2.1rem;'>"
-            f"{format_inr(top_record['modal_price'])} <span style='font-size: 1rem; color: #f1f8e9;'>/ {top_record.get('unit', 'Quintal')}</span></h2>"
-            f"<p style='margin: 0; font-size: 1.05rem;'>"
-            f"🏛️ <b>{top_record['market']}</b> ({top_record['district']}, {top_record['state']})<br/>"
-            f"📅 {top_record['data_date']} | {top_record.get('freshness_badge', '')} | 🏷️ {top_record['variety']}</p>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+    # ---------------- PODIUM STYLE TOP 3 MARKETS CARDS ----------------
+    render_podium_cards(display_records, selling_qty=selling_qty, lang=lang)
 
-        h_c1, h_c2, h_c3 = st.columns(3)
-        with h_c1:
-            st.metric(
-                label=f"🚗 {t('mandi_distance', lang)} ({farmer_district} पासून)",
-                value=f"{top_record['distance_km']} km",
-            )
-        with h_c2:
-            st.metric(
-                label=f"⛽ {t('mandi_transport_deduction', lang)}",
-                value=format_inr(top_record['transport_cost_per_qtl']),
-            )
-        with h_c3:
-            st.metric(
-                label=f"💰 {t('mandi_net_price', lang)}",
-                value=format_inr(top_record['estimated_net_price']),
-            )
+    # ---------------- SIMPLE VISUAL BAR CHART ----------------
+    st.markdown("---")
+    st.markdown(f"#### 📊 {t('mandi_chart_top_markets', lang)}")
+    chart_markets = display_records[:7]
+    if chart_markets:
+        chart_df = pd.DataFrame({
+            "Market": [f"{m['market']} ({m['district']})" for m in chart_markets],
+            "Modal Price (₹)": [m["modal_price"] for m in chart_markets],
+            "Net Price (₹)": [m["estimated_net_price"] for m in chart_markets],
+        }).set_index("Market")
+        st.bar_chart(chart_df)
 
     # Local District APMC Comparison Callout
+    top_record = display_records[0]
     local_rec = next(
         (r for r in display_records if r.get("district", "").lower() == farmer_district.lower()),
         None,
@@ -229,18 +247,6 @@ def render_market_page(farmer: AuthenticatedFarmer):
                 st.info(
                     f"ℹ️ स्थानिक बाजार समिती **{local_rec['market']}** चा दर जास्त फायदेशीर ठरत आहे."
                 )
-
-    # Top Markets Visual Bar Chart
-    st.markdown("---")
-    st.markdown(f"#### 📊 {t('mandi_chart_top_markets', lang)}")
-    chart_markets = display_records[:7]
-    if chart_markets:
-        chart_df = pd.DataFrame({
-            "Market": [f"{m['market']} ({m['district']})" for m in chart_markets],
-            "Modal Price (₹)": [m["modal_price"] for m in chart_markets],
-            "Net Price (₹)": [m["estimated_net_price"] for m in chart_markets],
-        }).set_index("Market")
-        st.bar_chart(chart_df)
 
     # Multi-Market Cards Comparison List
     st.markdown(f"#### 📋 {t('mandi_records_count', lang)} ({len(display_records)})")
@@ -293,7 +299,6 @@ def render_market_page(farmer: AuthenticatedFarmer):
     with u_c1:
         with st.container(border=True):
             st.markdown(f"##### 📲 {t('mandi_whatsapp_share', lang)}")
-            # Generate WhatsApp ready formatted message for top 3 markets
             share_lines = [
                 "🌾 *कृषी साथी AI - आजचे APMC बाजारभाव*",
                 f"पीक: *{sel_comm}* | राज्य: {sel_state}",

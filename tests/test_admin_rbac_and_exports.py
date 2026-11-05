@@ -24,6 +24,23 @@ def admin_user(db_session: Session) -> AuthenticatedFarmer:
     u = db_session.query(User).filter(User.role == "admin").first()
     if not u:
         u = UserService.seed_admin_if_missing(db_session)
+    if not u:
+        from core.security import hash_password
+        u = User(
+            full_name="Test Administrator",
+            email="test_admin@agrisaathi.local",
+            phone="9000000001",
+            password_hash=hash_password("Admin@Test2026!"),
+            preferred_language="en",
+            state="Maharashtra",
+            district="Pune",
+            village="HQ",
+            role="admin",
+            is_active=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+        db_session.refresh(u)
 
     return AuthenticatedFarmer(
         id=u.id,

@@ -1,6 +1,11 @@
-"""Farm Expenses UI page."""
+"""Farm Expenses UI page for Indian Farmers.
+
+Featuring oversized touch targets, category icons, voice notes,
+speech read-aloud, and high-contrast financial records.
+"""
 
 from datetime import date
+import textwrap
 import streamlit as st
 from core.database import get_db
 from core.auth import AuthenticatedFarmer
@@ -11,6 +16,9 @@ from utils.formatting import format_inr, format_date
 from utils.language import t
 from ui.state import get_language
 from core.exceptions import ValidationError
+from ui.components.voice_button import render_voice_mic_button, render_speaker_button
+from ui.components.card import render_metric_card
+from ui.components.icons import get_svg_icon
 
 
 EXPENSE_CATEGORIES = [
@@ -31,8 +39,6 @@ def render_expenses_page(farmer: AuthenticatedFarmer):
     """Render farm expense logging and financial summary page."""
     lang = get_language()
 
-    st.title(f"💸 {t('expenses', lang)} (खर्च व्यवस्थापन)")
-
     with get_db() as db:
         farmer_crops = CropService.list_crops(db, farmer.id)
         all_expenses = ExpenseService.list_expenses(db, farmer.id, limit=300)
@@ -41,13 +47,65 @@ def render_expenses_page(farmer: AuthenticatedFarmer):
     total_expense = expense_summary.get("total_expense", 0.0)
     by_category = expense_summary.get("by_category", {})
 
-    # Top summary metrics
+    # Premium Hero Header
+    rupee_icon = get_svg_icon("rupee", size=18, color="#ffffff")
+    st.markdown(
+        textwrap.dedent(f"""
+        <div class="agri-hero-banner" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px;">
+                        {rupee_icon} {t('expenses', lang)} • शेती हिशोब
+                    </div>
+                    <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">
+                        {t('expenses', lang)} (खर्च व्यवस्थापन)
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.88); font-size: 0.95rem; margin-top: 4px;">
+                        बियाणे, खते, औषधे, मजुरी व यंत्रांचा अचूक ताळेबंद
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); font-weight: 600;">एकूण खर्च</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: #ffe082;">{format_inr(total_expense)}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); font-weight: 600;">खर्च पावत्या</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: #ffffff;">{len(all_expenses)}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """).strip(),
+        unsafe_allow_html=True,
+    )
+
+    # Voice Assistant Controls
+    v_c1, v_c2 = st.columns([1, 1])
+    with v_c1:
+        render_voice_mic_button(lang, prompt_placeholder="🎙️ खताचा किंवा मजुरीचा खर्च बोला (Speak expense)")
+    with v_c2:
+        render_speaker_button("तुमचा शेतीतील बियाणे, खते, कीटकनाशके व मजुरीचा खर्च येथे नोंदवा आणि एकूण हिशोब ठेवा.", lang)
+
+    total_expense = expense_summary.get("total_expense", 0.0)
+    by_category = expense_summary.get("by_category", {})
+
+    # Top summary metrics using reusable metric cards
     m1, m2 = st.columns(2)
     with m1:
-        st.metric("एकूण नोंदवलेला खर्च (Total Expenses)", format_inr(total_expense))
+        render_metric_card(
+            label="एकूण नोंदवलेला खर्च (Total Expenses)",
+            value=format_inr(total_expense),
+            icon="💸",
+            bg_color="#fff8e1",
+        )
     with m2:
         top_cat = max(by_category.items(), key=lambda x: x[1])[0] if by_category else "N/A"
-        st.metric("सर्वाधिक खर्च असलेला घटक (Top Category)", top_cat)
+        render_metric_card(
+            label="सर्वाधिक खर्च घटक (Top Category)",
+            value=top_cat,
+            icon="🏷️",
+        )
 
     st.markdown("---")
 
@@ -76,7 +134,7 @@ def render_expenses_page(farmer: AuthenticatedFarmer):
                 payee = st.text_input("दुकानदार / मजुराचे नाव (Payee / Vendor)", placeholder="उदा. महालक्ष्मी कृषी केंद्र / बाळू मुकादम")
                 notes = st.text_input("तपशील / बिल नंबर (Receipt / Bill Note)", placeholder="उदा. २ पोती १०:२६:२६ खत")
 
-            submitted = st.form_submit_button("✅ खर्च जतन करा", use_container_width=True)
+            submitted = st.form_submit_button("✅ खर्च जतन करा (Save Expense)", use_container_width=True)
 
             if submitted:
                 try:
@@ -141,13 +199,13 @@ def render_expenses_page(farmer: AuthenticatedFarmer):
 
     if not filtered:
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="empty-state-box">
                 <div class="empty-state-icon">💸</div>
-                <h4 style="margin: 0; color: #1b5e20;">{t('empty_expenses_title', lang)}</h4>
-                <p style="color: #4b634b; font-size: 0.95rem; margin: 8px 0 0 0;">{t('empty_expenses_desc', lang)}</p>
+                <h3 style="margin: 0; color: #1b5e20; font-weight: 800;">{t('empty_expenses_title', lang)}</h3>
+                <p style="color: #4b634b; font-size: 1.05rem; margin: 10px 0 20px 0;">{t('empty_expenses_desc', lang)}</p>
             </div>
-            """,
+            """).strip(),
             unsafe_allow_html=True,
         )
     else:
@@ -159,8 +217,7 @@ def render_expenses_page(farmer: AuthenticatedFarmer):
                     st.markdown(f"{crop_name_tag}**{exp.category}: {format_inr(exp.amount)}** ({format_date(exp.expense_date)})")
                     st.caption(f"दुकान/व्यक्ती: {exp.vendor or exp.payee or 'N/A'} | तपशील: {exp.description or exp.notes or '-'}")
                 with col2:
-                    if st.button("🗑️", key=f"del_exp_page_{exp.id}"):
+                    if st.button("🗑️", key=f"del_exp_page_{exp.id}", use_container_width=True):
                         with get_db() as db:
                             ExpenseService.delete_expense(db, farmer.id, exp.id)
                         st.rerun()
-

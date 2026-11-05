@@ -1,5 +1,6 @@
 """Chat service orchestrating conversation history, RAG, and AI inference (Gemini & Ollama)."""
 
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Generator
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -13,6 +14,60 @@ from core.exceptions import NotFoundError, AIInferenceError, ValidationError, Co
 from core.auth import verify_farmer_ownership
 from config import settings
 from utils.logging_config import logger
+
+SAFETY_TRIGGER_KEYWORDS = [
+    # English
+    "pesticide", "insecticide", "fungicide", "weedicide", "herbicide",
+    "chemical", "dosage", "dose", "spray", "poison", "toxicity",
+    "chlorpyrifos", "monocrotophos", "mancozeb", "imidacloprid", "cypermethrin",
+    "disease", "fungus", "blight", "rot", "wilt", "borer", "bollworm", "aphid",
+    "infestation", "mildew", "rust",
+    # Marathi
+    "कीटकनाशक", "बुरशीनाशक", "फवारणी", "रासायनिक", "औषध", "डोस", "मात्रा",
+    "रोग", "कीड", "अळी", "करपा", "तांबेरा", "मर", "भुरी", "मावा", "तुडतुडे",
+    # Hindi
+    "कीटनाशक", "फफूंदनाशक", "छिड़काव", "दवा", "कीड़ा", "बीमारी", "झुलसा",
+]
+
+
+def append_safety_disclaimer_if_needed(content: str, language: str = "en") -> str:
+    """Append a localized KCC (1800-180-1551) and KVK advisory notice if content touches on chemicals, dosages, or diseases."""
+    if not content:
+        return content
+
+    # If disclaimer already present, avoid duplication
+    if "1800-180-1551" in content:
+        return content
+
+    content_lower = content.lower()
+    is_triggered = any(kw.lower() in content_lower for kw in SAFETY_TRIGGER_KEYWORDS)
+    if not is_triggered:
+        return content
+
+    lang = (language or "en").lower()
+    if lang == "mr":
+        notice = (
+            "\n\n---\n⚠️ **महत्त्वाची कृषी सुरक्षा व सल्ला (KCC & KVK Advisory)**:\n"
+            "रासायनिक कीटकनाशके किंवा बुरशीनाशकांची फवारणी करण्यापूर्वी अचूक मात्रा आणि सुरक्षिततेसाठी "
+            "आपल्या जवळच्या **कृषी विज्ञान केंद्र (KVK)** किंवा कृषी सहाय्यकांचा प्रत्यक्ष सल्ला घ्या. "
+            "मोफत मार्गदर्शनासाठी **किसान कॉल सेंटर (Kisan Call Centre)** टोल-फ्री क्रमांक **1800-180-1551** वर संपर्क साधा."
+        )
+    elif lang == "hi":
+        notice = (
+            "\n\n---\n⚠️ **महत्वपूर्ण कृषि सुरक्षा सलाह (KCC & KVK Advisory)**:\n"
+            "रासायनिक कीटनाशक अथवा फफूंदनाशक का छिड़काव करने से पूर्व सटीक मात्रा हेतु "
+            "अपने नजदीकी **कृषि विज्ञान केंद्र (KVK)** अथवा कृषि अधिकारी से परामर्श लें। "
+            "नि:शुल्क त्वरित मार्गदर्शन हेतु **किसान कॉल सेंटर (Kisan Call Centre)** टोल-फ्री नंबर **1800-180-1551** पर संपर्क करें।"
+        )
+    else:
+        notice = (
+            "\n\n---\n⚠️ **Important Agricultural Safety Advisory (KCC & KVK Notice)**:\n"
+            "Before applying chemical pesticides, fungicides, or determining exact dosages, "
+            "consult your local **Krishi Vigyan Kendra (KVK)** or agricultural field officer. "
+            "For free instant expert advice, call the **Kisan Call Centre toll-free at 1800-180-1551**."
+        )
+
+    return content + notice
 
 
 class ChatService:
@@ -62,6 +117,57 @@ class ChatService:
         db.delete(conv)
         db.commit()
         return True
+
+    @staticmethod
+    def get_daily_user_chat_count(db: Session, farmer_id: str) -> int:
+        """Count user queries submitted by this farmer today (UTC day)."""
+        start_of_day = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
+        return (
+            db.query(Message)
+            .filter(
+                Message.farmer_id == farmer_id,
+                Message.role == "user",
+                Message.created_at >= start_of_day,
+            )
+            .count()
+        )
+
+    @staticmethod
+    def check_daily_limit(db: Session, farmer_id: str) -> bool:
+        """Return True if farmer has reached or exceeded their daily AI query quota."""
+        count = ChatService.get_daily_user_chat_count(db, farmer_id)
+        return count >= settings.AI_DAILY_REQUEST_LIMIT
+
+    @staticmethod
+    def get_daily_limit_message(language: str = "en") -> str:
+        """Return a warm, respectful localized message when daily AI query limit is reached."""
+        limit = settings.AI_DAILY_REQUEST_LIMIT
+        lang = (language or "en").lower()
+        if lang == "mr":
+            return (
+                f"🙏 **आजची AI प्रश्न मर्यादा पूर्ण झाली आहे.**\n\n"
+                f"शेतकरी मित्रा, आजसाठी तुमची मोफत AI प्रश्न मर्यादा ({limit} प्रश्न) पूर्ण झाली आहे. "
+                "आमची AI सल्लागार सेवा उद्या सकाळी पुन्हा उपलब्ध होईल.\n\n"
+                "📌 तोपर्यंत तुम्ही तुमच्या इतर सर्व शेती नोंदी, खर्च, हवामान व बाजारभाव तपासू शकता.\n"
+                "📞 **तातडीच्या शेती सल्ल्यासाठी**: किसान कॉल सेंटर **1800-180-1551** (टोल-फ्री) वर संपर्क साधा."
+            )
+        elif lang == "hi":
+            return (
+                f"🙏 **आज की AI प्रश्न सीमा पूरी हो गई है।**\n\n"
+                f"किसान भाई, आज के लिए आपकी AI प्रश्न सीमा ({limit} प्रश्न) पूरी हो चुकी है। "
+                "यह सेवा कल सुबह फिर से उपलब्ध होगी।\n\n"
+                "📌 तब तक आप अपने सभी फसल रिकॉर्ड, कृषि खर्च, मौसम और मंडी भाव देख सकते हैं।\n"
+                "📞 **आपातकालीन कृषि सलाह के लिए**: किसान कॉल सेंटर **1800-180-1551** (टोल-फ्री) पर संपर्क करें।"
+            )
+        return (
+            f"🙏 **Daily AI Question Limit Reached.**\n\n"
+            f"Dear Farmer, you have reached your daily limit of {limit} AI queries for today. "
+            "Your quota will reset tomorrow morning.\n\n"
+            "📌 In the meantime, your farm records, crop diaries, weather forecast, and mandi prices remain fully accessible.\n"
+            "📞 **For immediate agricultural assistance**: Contact Kisan Call Centre toll-free at **1800-180-1551**."
+        )
 
     @staticmethod
     def prepare_chat_context(
@@ -155,12 +261,18 @@ class ChatService:
 
         db.commit()
 
+        # Check daily quota (including the message just persisted)
+        daily_count = ChatService.get_daily_user_chat_count(db, farmer_id)
+        limit_reached = daily_count > settings.AI_DAILY_REQUEST_LIMIT
+
         return {
             "messages_payload": messages_payload,
             "retrieved_docs": retrieved_docs,
             "crop_name": crop_name,
             "effective_lang": effective_lang,
             "conversation": conv,
+            "limit_reached": limit_reached,
+            "daily_count": daily_count,
         }
 
     @staticmethod
@@ -203,14 +315,23 @@ class ChatService:
             )
 
     @staticmethod
-    def stream_reply(messages_payload: List[Dict[str, str]]) -> Generator[str, None, None]:
-        """Stream AI reply chunks from Gemini, with graceful fallback or error handling."""
+    def stream_reply(messages_payload: List[Dict[str, str]], language: str = "en") -> Generator[str, None, None]:
+        """Stream AI reply chunks from Gemini, with graceful fallback and automated safety advisory."""
         provider = (settings.AI_PROVIDER or "gemini").strip().lower()
+        accumulated: List[str] = []
+
+        def _yield_safety_suffix():
+            full_text = "".join(accumulated)
+            enhanced = append_safety_disclaimer_if_needed(full_text, language)
+            if len(enhanced) > len(full_text):
+                yield enhanced[len(full_text):]
 
         if provider == "gemini":
             try:
                 for chunk in gemini_service.stream_chat_completion(messages_payload):
+                    accumulated.append(chunk)
                     yield chunk
+                yield from _yield_safety_suffix()
                 return
             except (AIInferenceError, ConfigurationError) as e:
                 logger.warning(f"Primary Gemini stream failed: {e}")
@@ -218,7 +339,9 @@ class ChatService:
                     logger.info("Attempting Ollama fallback for stream request...")
                     try:
                         reply = ollama_service.chat_completion(messages_payload)
+                        accumulated.append(reply)
                         yield reply
+                        yield from _yield_safety_suffix()
                         return
                     except Exception as ollama_err:
                         yield (
@@ -236,7 +359,9 @@ class ChatService:
         # Provider is Ollama
         try:
             reply = ollama_service.chat_completion(messages_payload)
+            accumulated.append(reply)
             yield reply
+            yield from _yield_safety_suffix()
         except AIInferenceError as e:
             yield (
                 f"⚠️ **AI Service Notification**: Local AI assistant is currently unavailable ({str(e)}).\n\n"
@@ -250,13 +375,15 @@ class ChatService:
         farmer_id: str,
         conversation_id: str,
         content: str,
+        language: str = "en",
     ) -> Message:
-        """Persist assistant reply in the database."""
+        """Persist assistant reply in the database with safety disclaimers applied."""
+        final_content = append_safety_disclaimer_if_needed(content, language)
         assistant_msg = Message(
             conversation_id=conversation_id,
             farmer_id=farmer_id,
             role="assistant",
-            content=content,
+            content=final_content,
         )
         db.add(assistant_msg)
         db.commit()
@@ -282,12 +409,18 @@ class ChatService:
             language=language,
         )
 
-        assistant_reply = ChatService.generate_reply(context["messages_payload"])
+        if context.get("limit_reached"):
+            assistant_reply = ChatService.get_daily_limit_message(language)
+        else:
+            raw_reply = ChatService.generate_reply(context["messages_payload"])
+            assistant_reply = append_safety_disclaimer_if_needed(raw_reply, language)
+
         assistant_msg = ChatService.save_assistant_message(
             db=db,
             farmer_id=farmer_id,
             conversation_id=conversation_id,
             content=assistant_reply,
+            language=language,
         )
 
         return {

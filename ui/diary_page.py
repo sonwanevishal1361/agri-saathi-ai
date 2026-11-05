@@ -1,6 +1,11 @@
-"""Farm Activity Diary UI page."""
+"""Farm Activity Diary UI page for Indian Farmers.
+
+Featuring oversized touch targets, voice dictation for diary notes,
+speech read-aloud, and high-contrast clear records.
+"""
 
 from datetime import date
+import textwrap
 import streamlit as st
 from core.database import get_db
 from core.auth import AuthenticatedFarmer
@@ -11,6 +16,9 @@ from utils.formatting import format_inr, format_date
 from utils.language import t
 from ui.state import get_language
 from core.exceptions import ValidationError
+from ui.components.voice_button import render_voice_mic_button, render_speaker_button
+from ui.components.card import render_metric_card
+from ui.components.icons import get_svg_icon
 
 
 ACTIVITY_TYPES = [
@@ -31,19 +39,66 @@ def render_diary_page(farmer: AuthenticatedFarmer):
     """Render the farm activity diary page."""
     lang = get_language()
 
-    st.title(f"📅 {t('farm_diary', lang)}")
-
     with get_db() as db:
         farmer_crops = CropService.list_crops(db, farmer.id)
         all_activities = ActivityService.list_activities(db, farmer.id, limit=200)
 
-    # Top metrics
     tot_cost = sum(a.cost or 0.0 for a in all_activities)
+
+    # Hero Banner
+    calendar_icon = get_svg_icon("calendar", size=18, color="#ffffff")
+    st.markdown(
+        textwrap.dedent(f"""
+        <div class="agri-hero-banner" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px;">
+                        {calendar_icon} {t('farm_diary', lang)} • शेती दैनंदिनी
+                    </div>
+                    <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">
+                        {t('farm_diary', lang)}
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.88); font-size: 0.95rem; margin-top: 4px;">
+                        पेरणी, फवारणी, खत व्यवस्थापन आणि मजुरीच्या सर्व दैनंदिन नोंदी एकाच ठिकाणी
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); font-weight: 600;">एकूण नोंदी</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: #ffffff;">{len(all_activities)}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); font-weight: 600;">एकूण कृती खर्च</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: #ffe082;">{format_inr(tot_cost)}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """).strip(),
+        unsafe_allow_html=True,
+    )
+
+    # Voice Assistant Controls
+    v_c1, v_c2 = st.columns([1, 1])
+    with v_c1:
+        render_voice_mic_button(lang, prompt_placeholder="🎙️ शेती काम बोला (Speak activity note)")
+    with v_c2:
+        render_speaker_button("तुमच्या शेतातील दैनंदिन कामे जसे की पेरणी, खुरपणी, खते व फवारणीची नोंद येथे ठेवा.", lang)
+
+    # Top metrics via reusable cards
     m1, m2 = st.columns(2)
     with m1:
-        st.metric("एकूण नोंदवलेल्या कृती (Total Activities)", len(all_activities))
+        render_metric_card(
+            label="एकूण नोंदी (Total Activities)",
+            value=f"{len(all_activities)}",
+            icon="📅",
+        )
     with m2:
-        st.metric("कृतींशी संबंधित खर्च (Activity Costs)", format_inr(tot_cost))
+        render_metric_card(
+            label="कृतींशी संबंधित खर्च (Activity Costs)",
+            value=format_inr(tot_cost),
+            icon="💸",
+        )
 
     st.markdown("---")
 
@@ -67,7 +122,7 @@ def render_diary_page(farmer: AuthenticatedFarmer):
                 cost = st.number_input("खर्च (रुपये ₹)", min_value=0.0, value=0.0, step=100.0)
                 desc = st.text_area("तपशील / शेरा (Details / Notes)", placeholder="उदा. १० मजूर लावून तण काढले व युरियाची दुसरी मात्रा दिली.")
 
-            submitted = st.form_submit_button("✅ कृती जतन करा", use_container_width=True)
+            submitted = st.form_submit_button("✅ कृती जतन करा (Save Activity)", use_container_width=True)
 
             if submitted:
                 try:
@@ -119,13 +174,13 @@ def render_diary_page(farmer: AuthenticatedFarmer):
 
     if not filtered:
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="empty-state-box">
                 <div class="empty-state-icon">📅</div>
-                <h4 style="margin: 0; color: #1b5e20;">{t('empty_diary_title', lang)}</h4>
-                <p style="color: #4b634b; font-size: 0.95rem; margin: 8px 0 0 0;">{t('empty_diary_desc', lang)}</p>
+                <h3 style="margin: 0; color: #1b5e20; font-weight: 800;">{t('empty_diary_title', lang)}</h3>
+                <p style="color: #4b634b; font-size: 1.05rem; margin: 10px 0 20px 0;">{t('empty_diary_desc', lang)}</p>
             </div>
-            """,
+            """).strip(),
             unsafe_allow_html=True,
         )
     else:
@@ -139,8 +194,7 @@ def render_diary_page(farmer: AuthenticatedFarmer):
                     if act.description:
                         st.caption(act.description)
                 with col2:
-                    if st.button("🗑️", key=f"del_diary_{act.id}"):
+                    if st.button("🗑️", key=f"del_diary_{act.id}", use_container_width=True):
                         with get_db() as db:
                             ActivityService.delete_activity(db, farmer.id, act.id)
                         st.rerun()
-

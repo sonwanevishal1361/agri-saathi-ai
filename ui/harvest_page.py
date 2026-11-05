@@ -1,6 +1,7 @@
 """Harvest and Revenue tracking UI page."""
 
 from datetime import date
+import textwrap
 import streamlit as st
 from core.database import get_db
 from core.auth import AuthenticatedFarmer
@@ -11,18 +12,54 @@ from utils.formatting import format_inr, format_date
 from utils.language import t
 from ui.state import get_language
 from core.exceptions import ValidationError
+from ui.components.icons import get_svg_icon
 
 
 def render_harvest_page(farmer: AuthenticatedFarmer):
     """Render harvest records and farm revenue page."""
     lang = get_language()
 
-    st.title(f"🌾 {t('harvest', lang)} नोंदी व उत्पन्न (Harvest & Revenue)")
-
     with get_db() as db:
         farmer_crops = CropService.list_crops(db, farmer.id)
         all_harvests = HarvestService.list_harvest_records(db, farmer.id, limit=200)
         harvest_summary = HarvestService.get_harvest_summary(db, farmer.id)
+
+    total_revenue = harvest_summary.get("total_revenue", 0.0)
+    total_expense = harvest_summary.get("total_expenses", 0.0)
+    net_profit = harvest_summary.get("net_profit", 0.0)
+
+    # Hero Banner
+    harvest_icon = get_svg_icon("sprout", size=18, color="#ffffff")
+    st.markdown(
+        textwrap.dedent(f"""
+        <div class="agri-hero-banner" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px;">
+                        {harvest_icon} {t('harvest', lang)} • काढणी व उत्पन्न
+                    </div>
+                    <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">
+                        {t('harvest', lang)} नोंदी व उत्पन्न (Harvest & Revenue)
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.88); font-size: 0.95rem; margin-top: 4px;">
+                        पिकांची काढणी, विक्री दर, उत्पन्न आणि नफ्याचा ताळेबंद
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); font-weight: 600;">एकूण उत्पन्न</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: #ffffff;">{format_inr(total_revenue)}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); font-weight: 600;">निव्वळ नफा</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: {'#a7f3d0' if net_profit >= 0 else '#fca5a5'};">{format_inr(net_profit)}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """).strip(),
+        unsafe_allow_html=True,
+    )
 
     total_revenue = harvest_summary.get("total_revenue", 0.0)
     total_expense = harvest_summary.get("total_expenses", 0.0)
@@ -100,13 +137,13 @@ def render_harvest_page(farmer: AuthenticatedFarmer):
 
     if not all_harvests:
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="empty-state-box">
                 <div class="empty-state-icon">💰</div>
                 <h4 style="margin: 0; color: #1b5e20;">{t('empty_harvest_title', lang)}</h4>
                 <p style="color: #4b634b; font-size: 0.95rem; margin: 8px 0 0 0;">{t('empty_harvest_desc', lang)}</p>
             </div>
-            """,
+            """).strip(),
             unsafe_allow_html=True,
         )
     else:

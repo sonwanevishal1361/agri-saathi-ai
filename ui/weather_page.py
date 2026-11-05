@@ -1,5 +1,6 @@
 """Weather Forecast and Agricultural Advisories UI page."""
 
+import textwrap
 import streamlit as st
 from services.weather_service import WeatherService
 from core.auth import AuthenticatedFarmer
@@ -37,25 +38,25 @@ def render_weather_page(farmer: AuthenticatedFarmer):
 
     # Current Weather Display Card
     st.markdown(
-        f"""
-        <div style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border: 1px solid #a5d6a7; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        textwrap.dedent(f"""
+        <div class="tilt-card" style="background: linear-gradient(135deg, #0f3822 0%, #1b5e20 45%, #2e7d32 100%); color: #ffffff; border: 1px solid rgba(255,255,255,0.2); border-radius: 22px; padding: 24px 28px; margin-bottom: 24px; box-shadow: 0 12px 30px -6px rgba(15, 56, 34, 0.22);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                 <div>
-                    <h3 style="color: #1b5e20; margin: 0;">📍 {loc.get('district')}, {loc.get('state')}</h3>
-                    <p style="margin: 4px 0 0 0; color: #388e3c; font-size: 1.1rem; font-weight: 500;">
+                    <h3 style="color: #ffffff; margin: 0; font-size: 1.6rem; font-weight: 800;">📍 {loc.get('district')}, {loc.get('state')}</h3>
+                    <p style="margin: 4px 0 0 0; color: #d4ebd9; font-size: 1.1rem; font-weight: 600;">
                         {curr.get('condition')}
                     </p>
                 </div>
                 <div style="text-align: right;">
-                    <span style="font-size: 2.4rem; font-weight: bold; color: #1b5e20;">
+                    <span style="font-size: 2.6rem; font-weight: 800; color: #ffffff; line-height: 1.1;">
                         {curr.get('temperature')}°C
                     </span>
                     <br>
-                    <span style="color: #555; font-size: 0.9rem;">(जाणवणारे तापमान: {curr.get('apparent_temperature')}°C)</span>
+                    <span style="color: #e8f5e9; font-size: 0.92rem; font-weight: 600;">(जाणवणारे तापमान: {curr.get('apparent_temperature')}°C)</span>
                 </div>
             </div>
         </div>
-        """,
+        """).strip(),
         unsafe_allow_html=True,
     )
 

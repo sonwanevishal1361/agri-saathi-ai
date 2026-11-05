@@ -18,6 +18,7 @@ class AuthenticatedFarmer:
     village: Optional[str]
     is_active: bool
     role: str = "farmer"  # "farmer" or "admin"
+    must_change_password: bool = False
 
     @property
     def is_admin(self) -> bool:

@@ -16,12 +16,19 @@ ENV/
 *.bak
 *.sqlite
 *.sqlite3
-.env
-.env.local
+.env*
+!.env.example
 data/*.db
 data/*.db.bak
 data/agrisaathi.db
 data/agrisaathi.db.bak
+
+# Backups
+data/backups/*
+!data/backups/.gitkeep
+backups/
+*.dump
+*.tar
 
 # Uploads
 data/uploads/*

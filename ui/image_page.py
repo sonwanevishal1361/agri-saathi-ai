@@ -1,5 +1,6 @@
 """Crop Image Upload and Symptom Assessment UI page."""
 
+import textwrap
 import streamlit as st
 from core.database import get_db
 from core.auth import AuthenticatedFarmer
@@ -11,9 +12,30 @@ from utils.formatting import format_date
 
 def render_image_page(farmer: AuthenticatedFarmer):
     """Render crop image upload, symptom analysis questionnaire, and health diary."""
-    st.title("🔬 पीक आरोग्य तपासणी व लक्षण निदान (Crop Health & Symptom Analyzer)")
     st.markdown(
-        "पिकावरील रोगाची किंवा किडीची लक्षणे निवडून ICAR मार्गदर्शक तत्त्वांनुसार प्रमाणित प्राथमिक सल्ला मिळवा."
+        textwrap.dedent("""
+        <div class="agri-hero-banner" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <div style="display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px;">
+                        🔬 पीक आरोग्य • ICAR मार्गदर्शक तत्त्वे
+                    </div>
+                    <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">
+                        पीक आरोग्य तपासणी व लक्षण निदान
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.88); font-size: 0.95rem; margin-top: 4px;">
+                        पिकावरील कीड व रोगांची लक्षणे तपासून शास्त्रोक्त उपाययोजना मिळवा
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 12px; color: #ffffff; font-weight: 700; font-size: 0.9rem;">
+                        🌿 AI Diagnostics
+                    </span>
+                </div>
+            </div>
+        </div>
+        """).strip(),
+        unsafe_allow_html=True,
     )
 
     # Honesty and transparency note regarding AI model

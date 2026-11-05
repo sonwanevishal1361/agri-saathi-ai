@@ -1,16 +1,24 @@
 """User and Farmer account service handling registration, login, and profile management."""
 
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from config import settings
 from models.user import User
 from schemas.user import UserRegister, UserLogin, UserUpdate, PasswordChange
-from core.security import hash_password, verify_password, validate_password_strength
+from core.security import (
+    hash_password,
+    verify_password,
+    validate_password_strength,
+    validate_password_policy,
+)
 from core.exceptions import (
     AuthenticationError,
     AuthorizationError,
     DuplicateRecordError,
     NotFoundError,
+    ValidationError,
 )
 from utils.logging_config import logger
 
@@ -48,6 +56,7 @@ class UserService:
             farm_area_unit=reg_data.farm_area_unit or "Acre",
             soil_type=reg_data.soil_type.strip() if reg_data.soil_type else None,
             irrigation_method=reg_data.irrigation_method.strip() if reg_data.irrigation_method else None,
+            role="farmer",
             is_active=True,
         )
         db.add(user)
@@ -76,8 +85,33 @@ class UserService:
         if not user.is_active:
             raise AuthenticationError("This account is currently deactivated.")
 
+        # Account Lockout Check
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if user.locked_until and user.locked_until > now:
+            remaining_mins = max(1, int((user.locked_until - now).total_seconds() // 60) + 1)
+            raise AuthenticationError(
+                f"Account is temporarily locked due to multiple failed login attempts. Please try again after {remaining_mins} minutes."
+            )
+
         if not verify_password(login_data.password, user.password_hash):
-            raise AuthenticationError("Invalid password. Please check and try again.")
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:
+                user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES)
+                db.commit()
+                raise AuthenticationError(
+                    f"Account locked for {settings.LOGIN_LOCKOUT_MINUTES} minutes due to {settings.MAX_FAILED_LOGIN_ATTEMPTS} consecutive failed login attempts."
+                )
+            db.commit()
+            remaining = settings.MAX_FAILED_LOGIN_ATTEMPTS - user.failed_login_attempts
+            raise AuthenticationError(
+                f"Invalid password. Please check and try again. ({remaining} attempts remaining before temporary lockout)"
+            )
+
+        # Successful login: reset failed attempts & lockout window
+        if (user.failed_login_attempts or 0) > 0 or user.locked_until is not None:
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            db.commit()
 
         logger.info(f"Farmer logged in successfully: {user.full_name} ({user.id})")
         return user
@@ -148,21 +182,163 @@ class UserService:
         logger.warning(f"Farmer account deleted permanently: {farmer_id}")
 
     @staticmethod
+    def export_farmer_personal_data(db: Session, farmer_id: str) -> dict:
+        """Export complete personal dataset for authenticated farmer under DPDP Act 2023."""
+        user = db.query(User).filter(User.id == farmer_id).first()
+        if not user:
+            raise NotFoundError("Farmer account not found.")
+
+        from models.crop import Crop
+        from models.activity import FarmActivity
+        from models.expense import Expense
+        from models.harvest import HarvestRecord
+        from models.conversation import Conversation, Message
+
+        crops = db.query(Crop).filter(Crop.farmer_id == farmer_id).all()
+        activities = db.query(FarmActivity).filter(FarmActivity.farmer_id == farmer_id).all()
+        expenses = db.query(Expense).filter(Expense.farmer_id == farmer_id).all()
+        harvests = db.query(HarvestRecord).filter(HarvestRecord.farmer_id == farmer_id).all()
+        conversations = db.query(Conversation).filter(Conversation.farmer_id == farmer_id).all()
+
+        conv_data = []
+        for c in conversations:
+            msgs = db.query(Message).filter(Message.conversation_id == c.id).order_by(Message.created_at.asc()).all()
+            conv_data.append({
+                "conversation_id": c.id,
+                "title": c.title,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "messages": [
+                    {
+                        "role": m.role,
+                        "content": m.content,
+                        "timestamp": m.created_at.isoformat() if m.created_at else None,
+                    }
+                    for m in msgs
+                ],
+            })
+
+        return {
+            "export_metadata": {
+                "system": "AgriSaathi AI",
+                "compliance": "Digital Personal Data Protection (DPDP) Act 2023",
+                "exported_at": datetime.now(timezone.utc).isoformat(),
+                "farmer_id": user.id,
+            },
+            "profile": {
+                "full_name": user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "state": user.state,
+                "district": user.district,
+                "village": user.village,
+                "farm_size": user.farm_size,
+                "farm_area_unit": user.farm_area_unit,
+                "soil_type": user.soil_type,
+                "irrigation_method": user.irrigation_method,
+                "preferred_language": user.preferred_language,
+                "registered_at": user.created_at.isoformat() if user.created_at else None,
+            },
+            "crops": [
+                {
+                    "id": cr.id,
+                    "name": cr.name,
+                    "variety": cr.variety,
+                    "area": cr.area,
+                    "area_unit": cr.area_unit,
+                    "sowing_date": str(cr.sowing_date) if cr.sowing_date else None,
+                    "expected_harvest_date": str(cr.expected_harvest_date) if cr.expected_harvest_date else None,
+                    "growth_stage": cr.growth_stage,
+                    "status": cr.status,
+                }
+                for cr in crops
+            ],
+            "activities": [
+                {
+                    "id": a.id,
+                    "crop_id": a.crop_id,
+                    "activity_type": a.activity_type,
+                    "title": a.title,
+                    "description": a.description,
+                    "activity_date": str(a.activity_date) if a.activity_date else None,
+                    "cost": a.cost,
+                }
+                for a in activities
+            ],
+            "expenses": [
+                {
+                    "id": e.id,
+                    "crop_id": e.crop_id,
+                    "category": e.category,
+                    "title": e.title,
+                    "amount": e.amount,
+                    "expense_date": str(e.expense_date) if e.expense_date else None,
+                    "payment_mode": e.payment_mode,
+                }
+                for e in expenses
+            ],
+            "harvest_records": [
+                {
+                    "id": h.id,
+                    "crop_id": h.crop_id,
+                    "quantity": h.quantity,
+                    "quantity_unit": h.quantity_unit,
+                    "selling_price": h.selling_price,
+                    "total_revenue": h.total_revenue,
+                    "harvest_date": str(h.harvest_date) if h.harvest_date else None,
+                }
+                for h in harvests
+            ],
+            "ai_consultations": conv_data,
+        }
+
+    @staticmethod
+    def change_password_forced(
+        db: Session,
+        user_id: str,
+        current_password: str,
+        new_password: str,
+    ) -> User:
+        """Force user to change temporary/initial password enforcing strict password policy."""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise NotFoundError("User account not found.")
+
+        if not verify_password(current_password, user.password_hash):
+            raise AuthenticationError("Current password is incorrect.")
+
+        is_valid, err_msg = validate_password_policy(new_password)
+        if not is_valid:
+            raise ValidationError(err_msg)
+
+        user.password_hash = hash_password(new_password)
+        user.must_change_password = False
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.commit()
+        db.refresh(user)
+        logger.info(f"Forced password change completed for user: {user.id}")
+        return user
+
+    @staticmethod
     def seed_admin_if_missing(db: Session) -> Optional[User]:
-        """Ensure at least one administrator account exists in the database."""
+        """Ensure an administrator account exists if ADMIN_EMAIL & ADMIN_PASSWORD are configured in environment."""
         admin = db.query(User).filter(User.role == "admin").first()
         if admin:
             return admin
 
-        from config import settings
-        admin_email = settings.ADMIN_DEFAULT_EMAIL.strip().lower()
-        admin_phone = settings.ADMIN_DEFAULT_PHONE.strip()
-        admin_pass = settings.ADMIN_DEFAULT_PASSWORD
+        admin_email = (settings.ADMIN_EMAIL or "").strip().lower()
+        admin_pass = (settings.ADMIN_PASSWORD or "").strip()
+        admin_phone = (settings.ADMIN_PHONE or "").strip()
+
+        if not admin_email or not admin_pass:
+            logger.info("No ADMIN_EMAIL / ADMIN_PASSWORD configured in environment. Initial admin seeding skipped.")
+            return None
 
         # Check if user with that email or phone exists
-        existing = db.query(User).filter(
-            or_(User.email == admin_email, User.phone == admin_phone)
-        ).first()
+        conditions = [User.email == admin_email]
+        if admin_phone:
+            conditions.append(User.phone == admin_phone)
+        existing = db.query(User).filter(or_(*conditions)).first()
 
         if existing:
             existing.role = "admin"
@@ -172,19 +348,20 @@ class UserService:
 
         hashed = hash_password(admin_pass)
         admin_user = User(
-            full_name="Platform Developer Admin (Vishal Sonwane)",
+            full_name="Platform Administrator",
             email=admin_email,
-            phone=admin_phone,
+            phone=admin_phone or None,
             password_hash=hashed,
             preferred_language="en",
             state="Maharashtra",
             district="Pune",
             village="Headquarters",
             role="admin",
+            must_change_password=True,
             is_active=True,
         )
         db.add(admin_user)
         db.commit()
         db.refresh(admin_user)
-        logger.info(f"Seeded default developer admin account: {admin_user.email} (ID: {admin_user.id})")
+        logger.info(f"Provisioned initial administrator account from environment: {admin_user.email} (ID: {admin_user.id})")
         return admin_user

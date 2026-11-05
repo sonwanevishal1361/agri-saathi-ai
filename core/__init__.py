@@ -1,6 +1,6 @@
 """Core module providing database, security, and authentication."""
 
-from core.database import Base, get_db, init_db, drop_db, engine, SessionLocal
+from core.database import Base, get_db, init_db, drop_db, engine, SessionLocal, get_database_info
 from core.security import hash_password, verify_password, validate_password_strength, generate_session_token
 from core.auth import AuthenticatedFarmer, verify_farmer_ownership
 from core.exceptions import (
@@ -20,6 +20,7 @@ __all__ = [
     "drop_db",
     "engine",
     "SessionLocal",
+    "get_database_info",
     "hash_password",
     "verify_password",
     "validate_password_strength",

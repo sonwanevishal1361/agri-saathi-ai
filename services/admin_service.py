@@ -105,9 +105,10 @@ class AdminService:
         """Aggregate platform overview metrics for developers and application owners."""
         require_admin(admin)
 
-        # Farmers count (excluding admin accounts)
-        total_farmers = db.query(func.count(User.id)).filter(User.role != "admin").scalar() or 0
-        active_farmers = db.query(func.count(User.id)).filter(User.role != "admin", User.is_active.is_(True)).scalar() or 0
+        # Farmers count (excluding admin accounts, safely including NULL/legacy roles)
+        farmer_filter = or_(User.role != "admin", User.role.is_(None))
+        total_farmers = db.query(func.count(User.id)).filter(farmer_filter).scalar() or 0
+        active_farmers = db.query(func.count(User.id)).filter(farmer_filter, User.is_active.is_(True)).scalar() or 0
 
         # Crops metrics
         total_crops = db.query(func.count(Crop.id)).scalar() or 0
@@ -135,7 +136,7 @@ class AdminService:
         # Language distribution
         lang_rows = (
             db.query(User.preferred_language, func.count(User.id))
-            .filter(User.role != "admin")
+            .filter(farmer_filter)
             .group_by(User.preferred_language)
             .all()
         )
@@ -144,7 +145,7 @@ class AdminService:
         # Districts distribution
         dist_rows = (
             db.query(User.district, func.count(User.id))
-            .filter(User.role != "admin", User.district.isnot(None))
+            .filter(farmer_filter, User.district.isnot(None))
             .group_by(User.district)
             .order_by(desc(func.count(User.id)))
             .limit(10)
@@ -191,7 +192,7 @@ class AdminService:
         """Fetch filtered farmer records with sanitized fields (strictly NO password hashes)."""
         require_admin(admin)
 
-        query = db.query(User).filter(User.role != "admin")
+        query = db.query(User).filter(or_(User.role != "admin", User.role.is_(None)))
 
         if search and search.strip():
             s = f"%{search.strip().lower()}%"
@@ -496,7 +497,7 @@ class AdminService:
 
         # Language distribution based on conversations and user preferences
         lang_counts: Dict[str, int] = {"mr": 0, "hi": 0, "en": 0}
-        for u in db.query(User).filter(User.role != "admin").all():
+        for u in db.query(User).filter(or_(User.role != "admin", User.role.is_(None))).all():
             pref = u.preferred_language or "en"
             lang_counts[pref] = lang_counts.get(pref, 0) + 1
 
@@ -555,7 +556,7 @@ class AdminService:
 
         if mod == "farmers":
             # Sanitize farmer records
-            query = db.query(User).filter(User.role != "admin")
+            query = db.query(User).filter(or_(User.role != "admin", User.role.is_(None)))
             if f.get("district") and f["district"].lower() != "all":
                 query = query.filter(func.lower(User.district) == f["district"].strip().lower())
             if f.get("state") and f["state"].lower() != "all":

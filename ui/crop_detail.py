@@ -1,6 +1,7 @@
 """Crop Detail page showing timelines, activities, expenses, and harvests."""
 
 from datetime import date
+import textwrap
 import streamlit as st
 from core.database import get_db
 from core.auth import AuthenticatedFarmer
@@ -81,23 +82,23 @@ def render_crop_detail(farmer: AuthenticatedFarmer, crop_id: str):
 
     # Crop Title Card
     st.markdown(
-        f"""
-        <div style="background: #f1f8e9; border: 1px solid #c8e6c9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+        textwrap.dedent(f"""
+        <div class="tilt-card" style="background: linear-gradient(135deg, #0f3822 0%, #1b5e20 45%, #2e7d32 100%); color: #ffffff; padding: 22px 26px; border-radius: 22px; margin-bottom: 22px; box-shadow: 0 12px 30px -6px rgba(15, 56, 34, 0.22); border: 1px solid rgba(255, 255, 255, 0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                 <div>
-                    <h2 style="color: #1b5e20; margin: 0;">🌾 {crop.name} <span style="font-size: 1.1rem; color: #555;">({crop.variety or 'साधारण वाण'})</span></h2>
-                    <p style="margin: 5px 0 0 0; color: #444;">
+                    <h2 style="color: #ffffff; margin: 0; font-size: 1.7rem; font-weight: 800;">🌾 {crop.name} <span style="font-size: 1.05rem; color: #e8f5e9; font-weight: 600;">({crop.variety or 'साधारण वाण'})</span></h2>
+                    <p style="margin: 6px 0 0 0; color: #d4ebd9; font-size: 0.98rem; font-weight: 600;">
                         <strong>शेत/गट:</strong> {crop.plot_name or 'मुख्य शेत'} | <strong>क्षेत्र:</strong> {crop.area} {crop.area_unit} | <strong>माती:</strong> {crop.soil_type or 'N/A'}
                     </p>
                 </div>
                 <div style="text-align: right;">
-                    <span style="background: #2e7d32; color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold;">
+                    <span style="background: rgba(255,255,255,0.22); color: #ffffff; padding: 6px 16px; border-radius: 20px; font-weight: 800; border: 1px solid rgba(255,255,255,0.4); font-size: 0.88rem;">
                         {crop.status.upper()}
                     </span>
                 </div>
             </div>
         </div>
-        """,
+        """).strip(),
         unsafe_allow_html=True,
     )
 

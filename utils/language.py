@@ -1310,6 +1310,132 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mr": "उघडा ➡️",
         "hi": "खोलें ➡️",
     },
+
+    # --- Weather Conditions & Diagnostics ---
+    "weather_clear_sky": {
+        "en": "Clear sky",
+        "mr": "निरभ्र आकाश",
+        "hi": "साफ आसमान",
+    },
+    "weather_mainly_clear": {
+        "en": "Mainly clear",
+        "mr": "मुख्यतः स्वच्छ",
+        "hi": "अधिकतर साफ",
+    },
+    "weather_partly_cloudy": {
+        "en": "Partly cloudy",
+        "mr": "अंशतः ढगाळ",
+        "hi": "आंशिक बादल",
+    },
+    "weather_overcast": {
+        "en": "Overcast",
+        "mr": "ढगाळ हवामान",
+        "hi": "घने बादल",
+    },
+    "weather_fog": {
+        "en": "Fog / Mist",
+        "mr": "धुके",
+        "hi": "कोहरा",
+    },
+    "weather_drizzle": {
+        "en": "Light drizzle",
+        "mr": "रिमझिम पाऊस",
+        "hi": "हल्की बूंदाबांदी",
+    },
+    "weather_heavy_rain": {
+        "en": "Heavy rain",
+        "mr": "मुसळधार पाऊस",
+        "hi": "भारी बारिश",
+    },
+    "weather_showers": {
+        "en": "Rain showers",
+        "mr": "पावसाच्या सरी",
+        "hi": "बारिश की बौछारें",
+    },
+    "weather_thunderstorm": {
+        "en": "Thunderstorm",
+        "mr": "वादळी पाऊस",
+        "hi": "तूफानी बारिश",
+    },
+
+    # --- Localized Units ---
+    "unit_kmh": {
+        "en": "km/h",
+        "mr": "किमी/तास",
+        "hi": "किमी/घंटा",
+    },
+    "unit_mm": {
+        "en": "mm",
+        "mr": "मिमी",
+        "hi": "मिमी",
+    },
+    "unit_celsius": {
+        "en": "°C",
+        "mr": "°से",
+        "hi": "°से",
+    },
+    "unit_acre": {
+        "en": "Acres",
+        "mr": "एकर",
+        "hi": "एकड़",
+    },
+    "unit_quintal": {
+        "en": "Quintal",
+        "mr": "क्विंटल",
+        "hi": "क्विंटल",
+    },
+    "unit_days": {
+        "en": "days",
+        "mr": "दिवस",
+        "hi": "दिन",
+    },
+
+    # --- Spray Advisories & Forecast ---
+    "spray_ok_pill": {
+        "en": "Favorable for Spraying",
+        "mr": "फवारणीस अनुकूल हवामान",
+        "hi": "छिड़काव के लिए अनुकूल मौसम",
+    },
+    "spray_warn_pill": {
+        "en": "Avoid Spraying Today",
+        "mr": "आज फवारणी टाळा",
+        "hi": "आज छिड़काव न करें",
+    },
+    "spray_read_aloud": {
+        "en": "Listen to Advice",
+        "mr": "सल्ला ऐका 🔊",
+        "hi": "सलाह सुनें 🔊",
+    },
+    "forecast_5day_title": {
+        "en": "5-Day Weather Forecast",
+        "mr": "५ दिवसांचा हवामान अंदाज",
+        "hi": "५ दिनों का मौसम पूर्वानुमान",
+    },
+    "days_to_harvest": {
+        "en": "days to harvest",
+        "mr": "काढणीस दिवस शिल्लक",
+        "hi": "कटाई के शेष दिन",
+    },
+    "next_action_label": {
+        "en": "Next Action",
+        "mr": "पुढील काम",
+        "hi": "अगली कार्रवाई",
+    },
+    "db_connection_error_title": {
+        "en": "Database Connection Issue",
+        "mr": "डेटाबेस जोडणी समस्या",
+        "hi": "डेटाबेस कनेक्शन समस्या",
+    },
+    "db_connection_error_desc": {
+        "en": "Unable to connect to the persistent production database. Please check your cloud database credentials and network connectivity.",
+        "mr": "शाश्वत उत्पादन डेटाबेसशी संपर्क साधता आला नाही. कृपया तुमचे क्लाउड डेटाबेस तपशील आणि इंटरनेट तपासा.",
+        "hi": "स्थायी उत्पादन डेटाबेस से कनेक्ट करने में असमर्थ। कृपया अपने क्लाउड डेटाबेस क्रेडेंशियल और इंटरनेट कनेक्टिविटी की जांच करें।",
+    },
+    "db_driver_error_desc": {
+        "en": "The PostgreSQL driver (psycopg) is missing or incompatible. Please verify psycopg[binary] is installed and Python 3.12 is selected.",
+        "mr": "PostgreSQL डेटाबेस ड्रायव्हर (psycopg) उपलब्ध नाही. कृपया psycopg[binary] इन्स्टॉल असल्याचे आणि Python 3.12 निवडल्याचे तपासा.",
+        "hi": "PostgreSQL डेटाबेस ड्राइवर (psycopg) उपलब्ध नहीं है। कृपया सत्यापित करें कि psycopg[binary] स्थापित है और Python 3.12 चयनित है।",
+    },
 }
 
 
@@ -1326,3 +1452,48 @@ def t(key: str, lang: str = "en") -> str:
         return key.replace("_", " ").title()
 
     return entry.get(lang) or entry.get("en") or key.replace("_", " ").title()
+
+
+def localize_weather_condition(condition_str: str, lang: str = "mr") -> str:
+    """Translate raw WMO English condition string to target language."""
+    if not condition_str:
+        return t("weather_clear_sky", lang)
+
+    cond_low = condition_str.lower().strip()
+    if any(k in cond_low for k in ["thunder", "storm"]):
+        return t("weather_thunderstorm", lang)
+    if any(k in cond_low for k in ["heavy rain", "torrential"]):
+        return t("weather_heavy_rain", lang)
+    if any(k in cond_low for k in ["shower", "drizzle", "slight rain"]):
+        return t("weather_showers", lang)
+    if any(k in cond_low for k in ["rain"]):
+        return t("weather_rain", lang)
+    if any(k in cond_low for k in ["overcast", "dense cloud"]):
+        return t("weather_overcast", lang)
+    if any(k in cond_low for k in ["partly cloud", "partly"]):
+        return t("weather_partly_cloudy", lang)
+    if any(k in cond_low for k in ["fog", "mist", "rime"]):
+        return t("weather_fog", lang)
+    if any(k in cond_low for k in ["mainly clear"]):
+        return t("weather_mainly_clear", lang)
+    if any(k in cond_low for k in ["clear", "sunny", "fair"]):
+        return t("weather_clear_sky", lang)
+
+    # Fallback to key or original
+    return t(condition_str, lang) if condition_str in TRANSLATIONS else condition_str
+
+
+def localize_unit(unit_str: str, lang: str = "mr") -> str:
+    """Translate measurement unit abbreviations into localized labels."""
+    u_map = {
+        "km/h": "unit_kmh",
+        "mm": "unit_mm",
+        "°C": "unit_celsius",
+        "°c": "unit_celsius",
+        "Acre": "unit_acre",
+        "Acres": "unit_acre",
+        "Quintal": "unit_quintal",
+        "days": "unit_days",
+    }
+    key = u_map.get(unit_str)
+    return t(key, lang) if key else unit_str

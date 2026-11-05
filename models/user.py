@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Boolean, DateTime
+from sqlalchemy import Column, String, Float, Boolean, DateTime, Integer
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -28,6 +28,9 @@ class User(Base):
     soil_type = Column(String(100), nullable=True)
     irrigation_method = Column(String(100), nullable=True)
     role = Column(String(20), default="farmer", nullable=False, index=True)  # farmer, admin
+    must_change_password = Column(Boolean, default=False, nullable=False)
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    locked_until = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=utc_now, nullable=False)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
