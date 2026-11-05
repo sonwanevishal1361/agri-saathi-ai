@@ -6,6 +6,7 @@ one-click demo farmer testing, responsive mobile stacking, and DPDP Act 2023 com
 
 import textwrap
 import streamlit as st
+from core.config import settings
 from core.database import get_db
 from schemas.user import UserRegister, UserLogin
 from services.user_service import UserService
@@ -345,13 +346,17 @@ def render_auth_page():
                 unsafe_allow_html=True,
             )
 
-            # 1-Click Demo Admin Access
-            if st.button("🚀 Demo Administrator Access (admin@agrisaathi.com)", key="auth_demo_admin_btn", use_container_width=True, type="primary"):
+            primary_admin_email = (settings.ADMIN_EMAIL or "sonwanevishal1361@gmail.com").strip().lower()
+            primary_admin_pw = (settings.ADMIN_PASSWORD or "vishal1361").strip()
+
+            # 1-Click Quick Admin Access
+            if st.button(f"🚀 Administrator Quick Access ({primary_admin_email})", key="auth_demo_admin_btn", use_container_width=True, type="primary"):
                 try:
                     with get_db() as db:
+                        UserService.seed_admin_if_missing(db)
                         admin_user = UserService.authenticate_farmer(
                             db,
-                            UserLogin(identifier="admin@agrisaathi.com", password="Admin@Agri2026!"),
+                            UserLogin(identifier=primary_admin_email, password=primary_admin_pw),
                         )
                         auth_admin = AuthenticatedFarmer(
                             id=admin_user.id,
@@ -370,7 +375,7 @@ def render_auth_page():
                         set_page("admin")
                         st.rerun()
                 except Exception as e:
-                    st.error(f"Demo admin login error: {str(e)}")
+                    st.error(f"Admin login error: {str(e)}")
 
             st.markdown(
                 textwrap.dedent("""
@@ -384,7 +389,7 @@ def render_auth_page():
             )
 
             with st.form("refined_admin_form", clear_on_submit=False):
-                admin_id = st.text_input("👤 Admin Email / Phone", placeholder="admin@agrisaathi.com", key="admin_auth_user")
+                admin_id = st.text_input("👤 Admin Email / Phone", value=primary_admin_email, placeholder="e.g. sonwanevishal1361@gmail.com", key="admin_auth_user")
                 admin_pw = st.text_input("🔒 Administrator Password", type="password", placeholder="Enter administrator password", key="admin_auth_pw")
                 admin_sub = st.form_submit_button("🚀 Authenticate Admin Access", use_container_width=True)
 
@@ -394,6 +399,7 @@ def render_auth_page():
                     else:
                         try:
                             with get_db() as db:
+                                UserService.seed_admin_if_missing(db)
                                 admin_user = UserService.authenticate_farmer(
                                     db,
                                     UserLogin(identifier=admin_id.strip(), password=admin_pw.strip()),
