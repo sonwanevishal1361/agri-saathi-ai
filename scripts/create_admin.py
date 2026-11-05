@@ -17,7 +17,7 @@ if str(BASE_DIR) not in sys.path:
 
 from sqlalchemy.orm import Session  # noqa: E402
 from core.database import get_db, init_db  # noqa: E402
-from core.security import hash_password, validate_password_policy  # noqa: E402
+from core.security import hash_password, validate_password_policy, validate_password_strength  # noqa: E402
 from models.user import User  # noqa: E402
 
 
@@ -27,15 +27,20 @@ def provision_admin(
     full_name: str = "AgriSaathi Administrator",
     phone: str = None,
     db: Session = None,
+    must_change_password: bool = True,
+    enforce_policy: bool = True,
 ) -> User:
-    """Create or promote a user to administrator with forced password change on first login."""
+    """Create or promote a user to administrator."""
     email_clean = (email or "").strip().lower()
     if not email_clean:
         raise ValueError("Admin email cannot be empty.")
 
-    is_valid, policy_err = validate_password_policy(password)
-    if not is_valid:
-        raise ValueError(f"Password does not satisfy security policy: {policy_err}")
+    if enforce_policy:
+        is_valid, policy_err = validate_password_policy(password)
+        if not is_valid:
+            raise ValueError(f"Password does not satisfy security policy: {policy_err}")
+    else:
+        validate_password_strength(password)
 
     def _execute(session: Session) -> User:
         user = session.query(User).filter(User.email == email_clean).first()
@@ -43,7 +48,7 @@ def provision_admin(
             print(f"[*] Found existing account for {email_clean} (ID: {user.id}). Promoting to administrator...")
             user.role = "admin"
             user.password_hash = hash_password(password)
-            user.must_change_password = True
+            user.must_change_password = must_change_password
             user.failed_login_attempts = 0
             user.locked_until = None
             if full_name:
@@ -52,7 +57,7 @@ def provision_admin(
                 user.phone = phone
             session.commit()
             session.refresh(user)
-            print(f"[+] Administrator account successfully updated for {email_clean} (forced password change enabled).")
+            print(f"[+] Administrator account successfully updated for {email_clean}.")
             return user
 
         # Create new admin user
@@ -62,7 +67,7 @@ def provision_admin(
             phone=phone,
             password_hash=hash_password(password),
             role="admin",
-            must_change_password=True,
+            must_change_password=must_change_password,
             is_active=True,
             preferred_language="en",
             state="Maharashtra",
@@ -73,7 +78,8 @@ def provision_admin(
         session.commit()
         session.refresh(admin)
         print(f"[+] Administrator account successfully created: {admin.email} (ID: {admin.id})")
-        print("[+] Policy enforced: Administrator must change password upon first login.")
+        if must_change_password:
+            print("[+] Policy enforced: Administrator must change password upon first login.")
         return admin
 
     if db is not None:
@@ -90,6 +96,8 @@ def main():
     parser.add_argument("--password", default=os.getenv("ADMIN_PASSWORD"), help="Admin password (or via ADMIN_PASSWORD env var)")
     parser.add_argument("--name", default=os.getenv("ADMIN_NAME", "Platform Administrator"), help="Admin full name")
     parser.add_argument("--phone", default=os.getenv("ADMIN_PHONE"), help="Admin contact phone")
+    parser.add_argument("--no-force-change", action="store_true", help="Do not require password change on next login")
+    parser.add_argument("--allow-simple-password", action="store_true", help="Allow standard password strength (>=6 chars) instead of strict enterprise policy")
 
     args = parser.parse_args()
 
@@ -116,6 +124,8 @@ def main():
             password=password,
             full_name=args.name,
             phone=args.phone,
+            must_change_password=not args.no_force_change,
+            enforce_policy=not args.allow_simple_password,
         )
     except Exception as exc:
         print(f"Error provisioning administrator: {exc}", file=sys.stderr)
